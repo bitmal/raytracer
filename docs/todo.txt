@@ -1,0 +1,3 @@
+[] Canvas
+	[] PutPixel(x, y, color)
+		[] transform from screen space to clip space
