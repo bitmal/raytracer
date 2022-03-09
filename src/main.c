@@ -10,6 +10,7 @@
 #include "stdinc.h"
 #include "rt_math.h"
 #include "canvas.h"
+#include "scene.h"
 #include "renderer.h"
 
 #include <X11/Xlib.h>
@@ -20,8 +21,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define WINDOW_WIDTH 1024
-#define WINDOW_HEIGHT 720
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
 
 int
 main(int argc, char **argv)
@@ -34,11 +35,19 @@ main(int argc, char **argv)
 	}
 
 	raytracer_canvas *canvas = canvas_create(display, WINDOW_WIDTH, WINDOW_HEIGHT);
+	raytracer_scene *scene = scene_init();
 	raytracer_renderer *renderer = renderer_init(canvas);
+
+	v4 spherePosition = {{-0.25f, -0.25f, 2.f, 0.f}};
+	i32 sphereId = scene_create_sphere(scene, &spherePosition, 0.25f, 0xFF0000);
+	renderer_push_sphere(renderer, sphereId);
+	v4 spherePosition1 = {{-0.125f, -0.25f, 1.f, 0.f}};
+	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 0.075f, 0xFF);
+	renderer_push_sphere(renderer, sphereId1);
 
 	XMapWindow(display, canvas_get_window(canvas));
 	XSync(display, False);
-	
+
 	b32 isRunning = B32_TRUE;
 
 	while (isRunning)
@@ -71,7 +80,7 @@ main(int argc, char **argv)
 			}
 		}
 
-		renderer_draw(renderer);
+		renderer_draw(renderer, scene);
 		canvas_flip(canvas);
 
 		struct timespec delayTime = {0, 15000000};
@@ -83,4 +92,5 @@ main(int argc, char **argv)
 
 #include "rt_math.c"
 #include "canvas.c"
+#include "scene.c"
 #include "renderer.c"

@@ -1,11 +1,14 @@
 #include "renderer.h"
 #include "canvas.h"
+#include "scene.h"
 
 #include <stdlib.h>
 
 struct raytracer_renderer
 {
 	raytracer_canvas *canvas;
+	i32 *sphereIds;
+	i32 sphereIdCount;
 };
 
 raytracer_renderer *
@@ -13,32 +16,59 @@ renderer_init(raytracer_canvas *canvas)
 {
 	raytracer_renderer *r = malloc(sizeof(raytracer_renderer));
 	r->canvas = canvas;
+	r->sphereIds = NULL;
+	r->sphereIdCount = 0;
 
 	return r;
 }
 
 void
-renderer_draw(raytracer_renderer *renderer)
+renderer_push_sphere(raytracer_renderer *renderer, i32 sphereId)
+{
+	i32 index = renderer->sphereIdCount;
+
+	if(renderer->sphereIdCount > 0)
+	{
+		renderer->sphereIds = realloc(renderer->sphereIds, 
+				sizeof(i32)*(++renderer->sphereIdCount));
+	}
+	else
+	{
+		renderer->sphereIds = malloc(sizeof(i32)*(++renderer->sphereIdCount));
+	}
+
+	renderer->sphereIds[index] = sphereId;
+}
+
+void
+renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 {
 	i32 width = canvas_get_width(renderer->canvas);
 	i32 height = canvas_get_height(renderer->canvas);
-
-	color32 startColor = 0xFF;
-	color32 endColor = 0xFF00FF;
-	i16 dR = (i16)((endColor >> 16) & 0xFF) - (i16)((startColor >> 16) & 0xFF);
-	i16 dG = (i16)((endColor >> 8) & 0xFF) - (i16)((startColor >> 8) & 0xFF);
-	i16 dB = (i16)((endColor) & 0xFF) - (i16)((startColor) & 0xFF);
 
 	for(i32 y = 0; y < height; ++y)
 	{
 		for(i32 x = 0; x < width; ++x)
 		{
-			real32 horiPerc = (real32)(x+1)/(real32)width;
+			v4 cameraPosition;
+			scene_get_camera_position(scene, &cameraPosition);
 
-			canvas_put_pixel(renderer->canvas, x, y, ((u32)(((startColor >> 16) & 0xFF) + 
-						(i16)(dR*horiPerc)) << 16) |
-				((u32)(((startColor >> 8) & 0xFF) + (i16)(horiPerc*dG)) << 8) |
-				((u32)(((startColor) & 0xFF) + (i16)(horiPerc*dB))));
+			v4 viewportPoint;
+			scene_canvas_to_world_coordinates(scene, renderer->canvas, x, y, &viewportPoint);
+
+			v4 direction;
+			vec4_direction(&cameraPosition, &viewportPoint, &direction);
+
+			color32 result;
+
+			if(scene_trace_ray(scene, &direction, 100.f, &result))
+			{
+				canvas_put_pixel(renderer->canvas, x, y, result);
+			}
+			else
+			{
+				canvas_put_pixel(renderer->canvas, x, y, 0x0);
+			}
 		}
 	}
 }
