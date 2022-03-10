@@ -28,11 +28,20 @@ typedef struct scene_sphere
 	color32 color;
 } scene_sphere;
 
+typedef struct scene_directional_light
+{
+	v4 direction;
+	real32 intensity;
+} scene_directional_light;
+
 struct raytracer_scene
 {
 	scene_camera camera;
+	scene_directional_light *directionalLights;
+	i32 directionalLightCount;
 	scene_sphere *spheres;
 	i32 sphereCount;
+	real32 ambientIntensity;
 };
 
 raytracer_scene *
@@ -47,6 +56,10 @@ scene_init()
 	scene->camera.viewport.back = scene->camera.viewport.front + 100.f;
 	scene->camera.viewport.fov = 90.f;
 	scene->camera.position = vec4_init(0.f, 0.f, 0.f, 0.f);
+
+	scene->directionalLights = NULL;
+	scene->directionalLightCount = 0;
+	scene->ambientIntensity = 0.15f;
 
 	return scene;
 }
@@ -126,20 +139,48 @@ scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, c
 	return index;
 }
 
+i32
+scene_create_directional_light(raytracer_scene *scene, const v4 *direction, 
+		real32 intensity)
+{
+	i32 index = scene->directionalLightCount;
+
+	if(scene->directionalLightCount > 0)
+	{
+		scene->directionalLights = realloc(scene->directionalLights, 
+				sizeof(scene_directional_light)*(++scene->directionalLightCount));
+	}
+	else
+	{
+		scene->directionalLights = malloc(sizeof(scene_directional_light)*
+				(++scene->directionalLightCount));
+	}
+
+	scene_directional_light *light = &scene->directionalLights[index];
+	light->direction = *direction;
+	light->intensity = intensity;
+
+	return index;
+}
+
+void
+scene_set_directional_light_intensity(raytracer_scene *scene, i32 lightId, 
+		real32 intensity)
+{
+	scene->directionalLights[lightId].intensity = intensity;
+}
+
 static i32
 _scene_get_ray_sphere_intersection(raytracer_scene *scene, i32 sphereId, 
-		const v4 *rayDirection, real32 rayDistance, real32 *out0, real32 *out1)
+		const v4 *viewportPosition, const v4 *origin, real32 *out0, real32 *out1)
 {
 	scene_sphere *sphere = &scene->spheres[sphereId];
 
 	v4 CO;
-	vec4_subtract3(&scene->camera.position, &sphere->position, &CO);
+	vec4_subtract3(origin, &sphere->position, &CO);
 
-	v4 D;
-	vec4_scalar3(rayDirection, rayDistance, &D);
-
-	real32 a = vec4_dot3(&D, &D);
-	real32 b = 2.f*vec4_dot3(&CO, &D);
+	real32 a = vec4_dot3(viewportPosition, viewportPosition);
+	real32 b = 2.f*vec4_dot3(&CO, viewportPosition);
 	real32 c = vec4_dot3(&CO, &CO) - sphere->radius*sphere->radius;
 
 	real32 discriminant = b*b - 4*a*c;
@@ -157,8 +198,7 @@ _scene_get_ray_sphere_intersection(raytracer_scene *scene, i32 sphereId,
 }
 
 b32
-scene_trace_ray(raytracer_scene *scene, const v4 *direction, real32 distance, 
-		color32 *outColor)
+scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *outColor)
 {
 	i32 closestSphereId = SPHERE_NULL;
 	real32 closestDistance;
@@ -166,8 +206,8 @@ scene_trace_ray(raytracer_scene *scene, const v4 *direction, real32 distance,
 	for(i32 i = 0; i < scene->sphereCount; ++i)
 	{
 		real32 distances[2];
-		i32 intersections = _scene_get_ray_sphere_intersection(scene, i, direction, 
-				distance, &distances[0], &distances[1]);
+		i32 intersections = _scene_get_ray_sphere_intersection(scene, i, viewportPosition, 
+				&scene->camera.position, &distances[0], &distances[1]);
 
 		for(i32 j = 0; j < intersections; ++j)
 		{
@@ -189,7 +229,40 @@ scene_trace_ray(raytracer_scene *scene, const v4 *direction, real32 distance,
 
 	if(closestSphereId != SPHERE_NULL)
 	{
-		*outColor = scene->spheres[closestSphereId].color;
+		color32 c = scene->spheres[closestSphereId].color;
+
+		real32 intensity = scene->ambientIntensity;
+
+		for(i32 i = 0; i < scene->directionalLightCount; ++i)
+		{
+			scene_directional_light *light = &scene->directionalLights[i];
+
+			v4 direction;
+			vec4_direction(&scene->camera.position, viewportPosition, &direction);
+
+			v4 intersectPoint;
+			vec4_scalar(&direction, closestDistance, &intersectPoint);
+			vec4_add3(&scene->camera.position, &intersectPoint, &intersectPoint);
+
+			v4 normal;
+			vec4_direction(&scene->spheres[closestSphereId].position, &intersectPoint, &normal);
+
+			real32 dot = vec4_dot3(&light->direction, &normal);
+
+			if(dot < 0.f)
+			{
+				intensity += -dot*light->intensity;
+			}
+		}
+
+		if(intensity > 1.f)
+		{
+			intensity = 1.f;
+		}
+
+		*outColor = ((u32)(((c >> 16) & 0xFF)*intensity) << 16) |
+			((u32)(((c >> 8) & 0xFF)*intensity) << 8) |
+			((u32)(((c) & 0xFF)*intensity));
 
 		return B32_TRUE;
 	}

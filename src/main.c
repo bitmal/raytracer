@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
+#define WINDOW_WIDTH 1024
+#define WINDOW_HEIGHT 768
 
 int
 main(int argc, char **argv)
@@ -38,17 +38,24 @@ main(int argc, char **argv)
 	raytracer_scene *scene = scene_init();
 	raytracer_renderer *renderer = renderer_init(canvas);
 
-	v4 spherePosition = {{-0.25f, -0.25f, 2.f, 0.f}};
-	i32 sphereId = scene_create_sphere(scene, &spherePosition, 0.25f, 0xFF0000);
+	v4 dirLightDirection = {{0.f, -1.f, 0.f, 0.f}};
+	i32 dirLight = scene_create_directional_light(scene, &dirLightDirection, 1.f);
+
+	v4 spherePosition = {{0, -1, 3, 0.f}};
+	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFF0000);
 	renderer_push_sphere(renderer, sphereId);
-	v4 spherePosition1 = {{-0.125f, -0.25f, 1.f, 0.f}};
-	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 0.075f, 0xFF);
+	v4 spherePosition1 = {{2, 0, 4, 0.f}};
+	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFF);
 	renderer_push_sphere(renderer, sphereId1);
+	v4 spherePosition2 = {{-1, -1, 3, 0.f}};
+	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFF00);
+	renderer_push_sphere(renderer, sphereId2);
 
 	XMapWindow(display, canvas_get_window(canvas));
 	XSync(display, False);
 
 	b32 isRunning = B32_TRUE;
+	real32 lightIntensity = 1.f;
 
 	while (isRunning)
 	{
@@ -66,6 +73,30 @@ main(int argc, char **argv)
 
 				case KeyPress:
 				{
+					KeySym sym = XkbKeycodeToKeysym(display, evt.xkey.keycode, 0, 0);
+
+					if(sym == XK_a)
+					{
+						lightIntensity -= 0.1f;
+
+						if(lightIntensity < 0.f)
+						{
+							lightIntensity = 0.f;
+						}
+
+						scene_set_directional_light_intensity(scene, dirLight, lightIntensity);
+					}
+					else if(sym == XK_d)
+					{
+						lightIntensity += 0.1f;
+
+						if(lightIntensity > 1.f)
+						{
+							lightIntensity = 1.f;
+						}
+
+						scene_set_directional_light_intensity(scene, dirLight, lightIntensity);
+					}
 				} break;
 
 				case KeyRelease:

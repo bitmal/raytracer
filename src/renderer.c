@@ -56,12 +56,9 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 			v4 viewportPoint;
 			scene_canvas_to_world_coordinates(scene, renderer->canvas, x, y, &viewportPoint);
 
-			v4 direction;
-			vec4_direction(&cameraPosition, &viewportPoint, &direction);
-
 			color32 result;
 
-			if(scene_trace_ray(scene, &direction, 100.f, &result))
+			if(scene_trace_ray(scene, &viewportPoint, &result))
 			{
 				canvas_put_pixel(renderer->canvas, x, y, result);
 			}

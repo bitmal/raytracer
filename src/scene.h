@@ -34,8 +34,15 @@ scene_world_to_canvas_y(raytracer_scene *scene, raytracer_canvas *canvas,
 extern i32
 scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c);
 
+extern i32
+scene_create_directional_light(raytracer_scene *scene, const v4 *direction, 
+		real32 intensity);
+
+extern void
+scene_set_directional_light_intensity(raytracer_scene *scene, i32 lightId, 
+		real32 intensity);
+
 extern b32
-scene_trace_ray(raytracer_scene *scene, const v4 *direction, real32 distance, 
-		color32 *outColor);
+scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *outColor);
 
 #endif
