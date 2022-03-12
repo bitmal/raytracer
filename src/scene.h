@@ -17,6 +17,12 @@ scene_set_camera_viewport(raytracer_scene *scene, real32 left, real32 right, rea
 		real32 bottom, real32 front, real32 distance, real32 fov);
 
 extern void
+scene_set_pixel_density(raytracer_scene *scene, real32 density);
+
+extern real32
+scene_get_pixel_density(raytracer_scene *scene);
+
+extern void
 scene_get_camera_position(raytracer_scene *scene, v4 *out);
 
 extern void

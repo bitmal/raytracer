@@ -42,6 +42,7 @@ struct raytracer_scene
 	scene_sphere *spheres;
 	i32 sphereCount;
 	real32 ambientIntensity;
+	real32 pixelDensity;
 };
 
 raytracer_scene *
@@ -59,7 +60,8 @@ scene_init()
 
 	scene->directionalLights = NULL;
 	scene->directionalLightCount = 0;
-	scene->ambientIntensity = 0.15f;
+	scene->ambientIntensity = 0.17f;
+	scene->pixelDensity = 1.f;
 
 	return scene;
 }
@@ -75,6 +77,18 @@ scene_set_camera_viewport(raytracer_scene *scene, real32 left, real32 right, rea
 	scene->camera.viewport.front = front;
 	scene->camera.viewport.back = scene->camera.viewport.front + distance;
 	scene->camera.viewport.fov = fov;
+}
+
+void
+scene_set_pixel_density(raytracer_scene *scene, real32 dropoff)
+{
+	scene->pixelDensity = dropoff;
+}
+
+real32
+scene_get_pixel_density(raytracer_scene *scene)
+{
+	return scene->pixelDensity;
 }
 
 void

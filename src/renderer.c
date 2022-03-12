@@ -9,6 +9,7 @@ struct raytracer_renderer
 	raytracer_canvas *canvas;
 	i32 *sphereIds;
 	i32 sphereIdCount;
+	color32 backgroundColor;
 };
 
 raytracer_renderer *
@@ -43,13 +44,21 @@ renderer_push_sphere(raytracer_renderer *renderer, i32 sphereId)
 void
 renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 {
+	real32 pixelDensity = scene_get_pixel_density(scene);
 	i32 width = canvas_get_width(renderer->canvas);
 	i32 height = canvas_get_height(renderer->canvas);
 
-	for(i32 y = 0; y < height; ++y)
+	// interpolate color to background
+
+#if 1
+	for(i32 _y = 0; _y < height; ++_y)
 	{
-		for(i32 x = 0; x < width; ++x)
+		i32 y = _y;
+
+		for(i32 _x = 0; _x < width; ++_x)
 		{
+			i32 x = _x;
+
 			v4 cameraPosition;
 			scene_get_camera_position(scene, &cameraPosition);
 
@@ -68,4 +77,5 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 			}
 		}
 	}
+#endif
 }
