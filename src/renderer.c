@@ -48,32 +48,43 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 	i32 width = canvas_get_width(renderer->canvas);
 	i32 height = canvas_get_height(renderer->canvas);
 
-	// interpolate color to background
-
 #if 1
-	for(i32 _y = 0; _y < height; ++_y)
+	// interpolate color to background
+	i32 partitionWidth = width*(pixelDensity/width);
+	i32 partitionHeight = height*(pixelDensity/height);
+
+	i32 xPartitionCount = width/partitionWidth;
+	i32 yPartitionCount = height/partitionHeight;
+
+	for(i32 _y = 0; _y < yPartitionCount; ++_y)
 	{
-		i32 y = _y;
+		i32 y = _y*partitionHeight;
 
-		for(i32 _x = 0; _x < width; ++_x)
+		for(i32 _x = 0; _x < xPartitionCount; ++_x)
 		{
-			i32 x = _x;
+			i32 x = _x*partitionWidth;
 
-			v4 cameraPosition;
-			scene_get_camera_position(scene, &cameraPosition);
-
-			v4 viewportPoint;
-			scene_canvas_to_world_coordinates(scene, renderer->canvas, x, y, &viewportPoint);
-
-			color32 result;
-
-			if(scene_trace_ray(scene, &viewportPoint, &result))
+			for(i32 pY = 0; pY < partitionHeight; ++pY)
 			{
-				canvas_put_pixel(renderer->canvas, x, y, result);
-			}
-			else
-			{
-				canvas_put_pixel(renderer->canvas, x, y, 0x0);
+				for(i32 pX = 0; pX < partitionWidth; ++pX)
+				{
+					v4 cameraPosition;
+					scene_get_camera_position(scene, &cameraPosition);
+
+					v4 viewportPoint;
+					scene_canvas_to_world_coordinates(scene, renderer->canvas, x, y, &viewportPoint);
+
+					color32 result;
+
+					if(scene_trace_ray(scene, &viewportPoint, &result))
+					{
+						canvas_put_pixel(renderer->canvas, x+pX, y+pY, result);
+					}
+					else
+					{
+						canvas_put_pixel(renderer->canvas, x+pX, y+pY, 0x0);
+					}
+				}
 			}
 		}
 	}

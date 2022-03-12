@@ -24,8 +24,10 @@
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
-#define PIXEL_DENSITY 10.f 
-#define MS_DELAY 100
+#define PIXEL_DENSITY 1.f 
+#define MS_DELAY 32 
+
+#define PIXEL_DENSITY_SHIFT_WEIGHT 1.f
 
 int
 main(int argc, char **argv)
@@ -41,7 +43,7 @@ main(int argc, char **argv)
 	raytracer_scene *scene = scene_init();
 	raytracer_renderer *renderer = renderer_init(canvas);
 
-#define SCENE_1
+#define SCENE_0
 
 // SCENE_0
 #ifdef SCENE_0 
@@ -71,7 +73,7 @@ main(int argc, char **argv)
 #ifdef SCENE_1
 #define OBJECT_COUNT 10 
 	v4 dirLightDirection = {{0.f, -1.f, 0.f, 0.f}};
-	i32 dirLight = scene_create_directional_light(scene, &dirLightDirection, 1.f);
+	scene_create_directional_light(scene, &dirLightDirection, 1.f);
 
 	i32 partitionWidth = WINDOW_WIDTH/(OBJECT_COUNT/2);
 	i32 partitionHeight = WINDOW_HEIGHT/(OBJECT_COUNT/2);
@@ -145,6 +147,25 @@ main(int argc, char **argv)
 						}
 
 						scene_set_directional_light_intensity(scene, dirLight, lightIntensity);
+					}
+					else if(sym == XK_s)
+					{
+						real32 pixelDensity = scene_get_pixel_density(scene);
+						pixelDensity -= PIXEL_DENSITY_SHIFT_WEIGHT;
+
+						if(pixelDensity < 1.f)
+						{
+							pixelDensity = 1.f;
+						}
+
+						scene_set_pixel_density(scene, pixelDensity);
+					}
+					else if(sym == XK_w)
+					{
+						real32 pixelDensity = scene_get_pixel_density(scene);
+						pixelDensity += PIXEL_DENSITY_SHIFT_WEIGHT;
+
+						scene_set_pixel_density(scene, pixelDensity);
 					}
 #endif
 				} break;
