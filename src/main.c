@@ -78,16 +78,19 @@ main(int argc, char **argv)
 	
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
 
-	void **pointLightValues = malloc(sizeof(void *)*2);
+	void **pointLightValues = malloc(sizeof(void *)*3);
 	pointLightValues[0] = malloc(sizeof(v4));
-	*(v4 *)pointLightValues[0] = vec4_init(-1, 1, 2, 0);
+	*(v4 *)pointLightValues[0] = vec4_init(0, 1, 2, 0);
 	pointLightValues[1] = malloc(sizeof(real32));
 	*(real32 *)pointLightValues[1] = 1.f;
+	pointLightValues[2] = malloc(sizeof(real32));
+	*(real32 *)pointLightValues[2] = 0.75f;
 	
-	light_set_values(scene, pointLight, 0x1 | 0x4, pointLightValues);
+	light_set_values(scene, pointLight, 0x1 | 0x4 | 0x8, pointLightValues);
 
 	free(pointLightValues[0]);
 	free(pointLightValues[1]);
+	free(pointLightValues[2]);
 	free(pointLightValues);
 
 	v4 spherePosition = {{0, -1, 3, 0.f}};
@@ -195,8 +198,7 @@ main(int argc, char **argv)
 							lightIntensity = 0.f;
 						}
 
-						void *valuePtr = &lightIntensity;
-						light_set_values(scene, pointLight, 0x4, &valuePtr);
+						light_set_value(scene, pointLight, 0x4, &lightIntensity);
 					}
 					else if(sym == XK_d)
 					{
@@ -207,8 +209,7 @@ main(int argc, char **argv)
 							lightIntensity = 1.f;
 						}
 						
-						void *valuePtr = &lightIntensity;
-						light_set_values(scene, pointLight, 0x4, &valuePtr);
+						light_set_value(scene, pointLight, 0x4, &lightIntensity);
 					}
 					else if(sym == XK_s)
 					{

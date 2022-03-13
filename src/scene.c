@@ -228,6 +228,98 @@ light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **val
 	}
 }
 
+void
+light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
+{
+	scene_light *light = &scene->lights[lightId];
+
+	switch(light->type)
+	{
+		case LIGHT_AMBIENT:
+		{
+			switch(valueFlag)
+			{
+				case LIGHT_VALUE_TYPE:
+				{
+					light->type = *(scene_light_t *)value;
+				} break;
+				
+				case LIGHT_VALUE_INTENSITY:
+				{
+					light->intensity = *(real32 *)value;
+				} break;
+
+				default:
+				{
+					fprintf(stderr, "Cannot set light value '%x' as type '%d'!\n", valueFlag, light->type); 
+				} break;
+			}
+		} break;
+
+		case LIGHT_DIRECTIONAL:
+		{
+			switch(valueFlag)
+			{
+				case LIGHT_VALUE_TYPE:
+				{
+					light->type = *(scene_light_t *)value;
+				} break;
+				
+				case LIGHT_VALUE_INTENSITY:
+				{
+					light->intensity = *(real32 *)value;
+				} break;
+				
+				case LIGHT_VALUE_DIRECTION:
+				{
+					light->direction = *(v4 *)value;
+				} break;
+
+				default:
+				{
+					fprintf(stderr, "Cannot set light value '%x' as type '%d'!\n", valueFlag, light->type); 
+				} break;
+			}
+		} break;
+		
+		case LIGHT_POINT:
+		{
+			switch(valueFlag)
+			{
+				case LIGHT_VALUE_TYPE:
+				{
+					light->type = *(scene_light_t *)value;
+				} break;
+				
+				case LIGHT_VALUE_POSITION:
+				{
+					light->position = *(v4 *)value;
+				} break;
+				
+				case LIGHT_VALUE_INTENSITY:
+				{
+					light->intensity = *(real32 *)value;
+				} break;
+				
+				case LIGHT_VALUE_RANGE:
+				{
+					light->range = *(real32 *)value;
+				} break;
+
+				default:
+				{
+					fprintf(stderr, "Cannot set light value '%x' as type '%d'!\n", valueFlag, light->type); 
+				} break;
+			}
+		} break;
+		
+		default:
+		{
+			fprintf(stderr, "Unknown light type, '%d'. Cannot set value!\n", light->type);
+		} break;
+	}
+}
+
 static i32
 _scene_get_ray_sphere_intersection(raytracer_scene *scene, i32 sphereId, 
 		const v4 *viewportPosition, const v4 *origin, real32 *out0, real32 *out1)
@@ -336,7 +428,8 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					if(dot < 0.f)
 					{
 						real32 lightIntensity = vec4_distance3(&light->position, &intersectPoint);
-						intensity += -dot*light->intensity*lightIntensity;
+						real32 dropoff = lightIntensity/light->range;
+						intensity += -dot*light->intensity*lightIntensity*(1.f/dropoff);
 					}
 				} break;
 			}
