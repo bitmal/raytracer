@@ -7,7 +7,20 @@
 typedef struct raytracer_scene raytracer_scene;
 struct raytracer_canvas;
 
+typedef enum scene_light_type
+{
+	LIGHT_AMBIENT,
+	LIGHT_DIRECTIONAL,
+	LIGHT_POINT
+} scene_light_t;
+
 #define SPHERE_NULL (-1)
+
+#define LIGHT_VALUE_TYPE 0x0
+#define LIGHT_VALUE_POSITION 0x1
+#define LIGHT_VALUE_DIRECTION 0x2
+#define LIGHT_VALUE_INTENSITY 0x4
+#define LIGHT_VALUE_RANGE 0x8
 
 extern raytracer_scene *
 scene_init();
@@ -17,10 +30,10 @@ scene_set_camera_viewport(raytracer_scene *scene, real32 left, real32 right, rea
 		real32 bottom, real32 front, real32 distance, real32 fov);
 
 extern void
-scene_set_pixel_density(raytracer_scene *scene, real32 density);
+scene_set_pixel_size(raytracer_scene *scene, real32 density);
 
 extern real32
-scene_get_pixel_density(raytracer_scene *scene);
+scene_get_pixel_size(raytracer_scene *scene);
 
 extern void
 scene_get_camera_position(raytracer_scene *scene, v4 *out);
@@ -41,12 +54,10 @@ extern i32
 scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c);
 
 extern i32
-scene_create_directional_light(raytracer_scene *scene, const v4 *direction, 
-		real32 intensity);
+scene_create_light(raytracer_scene *scene, scene_light_t type);
 
 extern void
-scene_set_directional_light_intensity(raytracer_scene *scene, i32 lightId, 
-		real32 intensity);
+light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **values);
 
 extern b32
 scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *outColor);

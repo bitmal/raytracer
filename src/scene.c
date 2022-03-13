@@ -3,6 +3,7 @@
 #include "rt_math.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 typedef struct camera_viewport
 {
@@ -28,21 +29,23 @@ typedef struct scene_sphere
 	color32 color;
 } scene_sphere;
 
-typedef struct scene_directional_light
+typedef struct scene_light
 {
+	scene_light_t type;
+	v4 position;
 	v4 direction;
 	real32 intensity;
-} scene_directional_light;
+	real32 range;
+} scene_light;
 
 struct raytracer_scene
 {
 	scene_camera camera;
-	scene_directional_light *directionalLights;
-	i32 directionalLightCount;
+	scene_light *lights;
+	i32 lightCount;
 	scene_sphere *spheres;
 	i32 sphereCount;
-	real32 ambientIntensity;
-	real32 pixelDensity;
+	real32 pixelSize;
 };
 
 raytracer_scene *
@@ -58,10 +61,9 @@ scene_init()
 	scene->camera.viewport.fov = 90.f;
 	scene->camera.position = vec4_init(0.f, 0.f, 0.f, 0.f);
 
-	scene->directionalLights = NULL;
-	scene->directionalLightCount = 0;
-	scene->ambientIntensity = 0.17f;
-	scene->pixelDensity = 1.f;
+	scene->lights = NULL;
+	scene->lightCount = 0;
+	scene->pixelSize = 1.f;
 
 	return scene;
 }
@@ -80,15 +82,15 @@ scene_set_camera_viewport(raytracer_scene *scene, real32 left, real32 right, rea
 }
 
 void
-scene_set_pixel_density(raytracer_scene *scene, real32 dropoff)
+scene_set_pixel_size(raytracer_scene *scene, real32 size)
 {
-	scene->pixelDensity = dropoff;
+	scene->pixelSize = size;
 }
 
 real32
-scene_get_pixel_density(raytracer_scene *scene)
+scene_get_pixel_size(raytracer_scene *scene)
 {
-	return scene->pixelDensity;
+	return scene->pixelSize;
 }
 
 void
@@ -154,34 +156,76 @@ scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, c
 }
 
 i32
-scene_create_directional_light(raytracer_scene *scene, const v4 *direction, 
-		real32 intensity)
+scene_create_light(raytracer_scene *scene, scene_light_t type)
 {
-	i32 index = scene->directionalLightCount;
+	i32 index = scene->lightCount;
 
-	if(scene->directionalLightCount > 0)
+	if(scene->lightCount > 0)
 	{
-		scene->directionalLights = realloc(scene->directionalLights, 
-				sizeof(scene_directional_light)*(++scene->directionalLightCount));
+		scene->lights = realloc(scene->lights, sizeof(scene_light)*(++scene->lightCount));
 	}
 	else
 	{
-		scene->directionalLights = malloc(sizeof(scene_directional_light)*
-				(++scene->directionalLightCount));
+		scene->lights = malloc(sizeof(scene_light)*(++scene->lightCount));
 	}
 
-	scene_directional_light *light = &scene->directionalLights[index];
-	light->direction = *direction;
-	light->intensity = intensity;
+	scene_light *light = &scene->lights[index];
+	light->type = type;
+	light->position = vec4_init(0, 0, 0, 0);
+	light->direction = vec4_init(0, -1.f, 0, 0);
+	light->intensity = 1.f;
+	light->range = 1.f;
 
 	return index;
 }
 
 void
-scene_set_directional_light_intensity(raytracer_scene *scene, i32 lightId, 
-		real32 intensity)
+light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **values)
 {
-	scene->directionalLights[lightId].intensity = intensity;
+	scene_light *light = &scene->lights[lightId];
+
+	i32 valuesSet = 0;
+
+	for(i32 i = 0; i < 32; ++i)
+	{
+		u32 flag = valueFlags & (1 << i);
+
+		if(flag)
+		{
+			switch(flag)
+			{
+				case LIGHT_VALUE_TYPE:
+				{
+					light->type = *((real32 **)values)[valuesSet++];
+				} break;
+				
+				case LIGHT_VALUE_POSITION:
+				{
+					light->position = *((v4 **)values)[valuesSet++];
+				} break;
+				
+				case LIGHT_VALUE_DIRECTION:
+				{
+					light->direction = *((v4 **)values)[valuesSet++];
+				} break;
+				
+				case LIGHT_VALUE_INTENSITY:
+				{
+					light->intensity = *((real32 **)values)[valuesSet++];
+				} break;
+				
+				case LIGHT_VALUE_RANGE:
+				{
+					light->range = *((real32 **)values)[valuesSet++];
+				} break;
+
+				default:
+				{
+					printf("Cannot set unknown light value!\n");
+				} break;
+			}
+		}
+	}
 }
 
 static i32
@@ -245,27 +289,56 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 	{
 		color32 c = scene->spheres[closestSphereId].color;
 
-		real32 intensity = scene->ambientIntensity;
+		v4 direction;
+		vec4_direction(&scene->camera.position, viewportPosition, &direction);
 
-		for(i32 i = 0; i < scene->directionalLightCount; ++i)
+		v4 intersectPoint;
+		vec4_scalar(&direction, closestDistance, &intersectPoint);
+		vec4_add3(&scene->camera.position, &intersectPoint, &intersectPoint);
+
+		v4 normal;
+		vec4_direction(&scene->spheres[closestSphereId].position, &intersectPoint, &normal);
+
+		real32 intensity = 0.f;
+
+		for(i32 i = 0; i < scene->lightCount; ++i)
 		{
-			scene_directional_light *light = &scene->directionalLights[i];
+			scene_light *light = &scene->lights[i];
 
-			v4 direction;
-			vec4_direction(&scene->camera.position, viewportPosition, &direction);
-
-			v4 intersectPoint;
-			vec4_scalar(&direction, closestDistance, &intersectPoint);
-			vec4_add3(&scene->camera.position, &intersectPoint, &intersectPoint);
-
-			v4 normal;
-			vec4_direction(&scene->spheres[closestSphereId].position, &intersectPoint, &normal);
-
-			real32 dot = vec4_dot3(&light->direction, &normal);
-
-			if(dot < 0.f)
+			switch(light->type)
 			{
-				intensity += -dot*light->intensity;
+				case LIGHT_AMBIENT:
+				{
+					intensity += light->intensity;
+				} break;
+				
+				case LIGHT_DIRECTIONAL:
+				{
+					scene_light *light = &scene->lights[i];
+
+					real32 dot = vec4_dot3(&light->direction, &normal);
+
+					if(dot < 0.f)
+					{
+						intensity += -dot*light->intensity;
+					}
+				} break;
+				
+				case LIGHT_POINT:
+				{
+					scene_light *light = &scene->lights[i];
+
+					v4 lightDirection;
+					vec4_direction(&light->position, &intersectPoint, &lightDirection);
+					
+					real32 dot = vec4_dot3(&lightDirection, &normal);
+
+					if(dot < 0.f)
+					{
+						real32 lightIntensity = vec4_distance3(&light->position, &intersectPoint);
+						intensity += -dot*light->intensity*lightIntensity;
+					}
+				} break;
 			}
 		}
 

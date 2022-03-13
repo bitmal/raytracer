@@ -44,14 +44,21 @@ renderer_push_sphere(raytracer_renderer *renderer, i32 sphereId)
 void
 renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 {
-	real32 pixelDensity = scene_get_pixel_density(scene);
+	real32 pixelSize = scene_get_pixel_size(scene);
 	i32 width = canvas_get_width(renderer->canvas);
 	i32 height = canvas_get_height(renderer->canvas);
 
+	for(i32 y = 0; y < height; ++y)
+	{
+		for(i32 x = 0; x < width; ++x)
+		{
+			canvas_put_pixel(renderer->canvas, x, y, 0x0);
+		}
+	}
+
 #if 1
-	// interpolate color to background
-	i32 partitionWidth = width*(pixelDensity/width);
-	i32 partitionHeight = height*(pixelDensity/height);
+	i32 partitionWidth = width*(pixelSize/width);
+	i32 partitionHeight = height*(pixelSize/height);
 
 	i32 xPartitionCount = width/partitionWidth;
 	i32 yPartitionCount = height/partitionHeight;
@@ -72,7 +79,7 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 					scene_get_camera_position(scene, &cameraPosition);
 
 					v4 viewportPoint;
-					scene_canvas_to_world_coordinates(scene, renderer->canvas, x, y, &viewportPoint);
+					scene_canvas_to_world_coordinates(scene, renderer->canvas, x+partitionWidth/2, y+partitionHeight/2, &viewportPoint);
 
 					color32 result;
 
