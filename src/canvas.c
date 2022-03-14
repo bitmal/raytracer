@@ -97,6 +97,17 @@ canvas_put_square(raytracer_canvas *canvas, i32 x, i32 y,
 	canvas->buffer.isDirty = B32_TRUE;
 }
 
+void
+canvas_draw_text(raytracer_canvas *canvas, i32 x, i32 y, const char *str)
+{
+	i32 strLength = 0;
+	for(const char *c = str; *c; ++c, ++strLength);
+
+	XDrawImageString(canvas->xlib.display, canvas->xlib.window, 
+			DefaultGC(canvas->xlib.display, canvas->xlib.screen), x, y, str, 
+			strLength);
+}
+
 Window
 canvas_get_window(raytracer_canvas *canvas)
 {

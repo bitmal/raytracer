@@ -18,4 +18,7 @@ renderer_push_sphere(raytracer_renderer *renderer, i32 sphereId);
 extern void
 renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene);
 
+extern void
+renderer_save_next_frame(raytracer_renderer *renderer, const char *filename);
+
 #endif

@@ -17,6 +17,9 @@ extern void
 canvas_put_square(raytracer_canvas *canvas, i32 x, i32 y, 
 		i32 width, i32 height, color32 c);
 
+extern void
+canvas_draw_text(raytracer_canvas *canvas, i32 x, i32 y, const char *str);
+
 extern Window
 canvas_get_window(raytracer_canvas *canvas);
 

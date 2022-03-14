@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <tgmath.h>
+#include <math.h>
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
@@ -170,6 +171,9 @@ main(int argc, char **argv)
 	real32 lightIntensity = 1.f;
 #endif
 
+	struct timespec prevTime;
+	clock_gettime(CLOCK_MONOTONIC, &prevTime);
+
 	while (isRunning)
 	{
 		XEvent evt;
@@ -186,10 +190,18 @@ main(int argc, char **argv)
 
 				case KeyPress:
 				{
-#ifdef SCENE_0 
 					KeySym sym = XkbKeycodeToKeysym(display, evt.xkey.keycode, 0, 0);
 
-					if(sym == XK_a)
+					if(sym == XK_w)
+					{
+						real32 pixelSize = scene_get_pixel_size(scene);
+						pixelSize += PIXEL_SIZE_SHIFT_WEIGHT;
+
+						scene_set_pixel_size(scene, pixelSize);
+					}
+
+#ifdef SCENE_0 
+					else if(sym == XK_a)
 					{
 						lightIntensity -= 0.1f;
 
@@ -230,12 +242,14 @@ main(int argc, char **argv)
 
 						scene_set_pixel_size(scene, pixelSize);
 					}
+					else if(sym == XK_Print)
+					{
+						renderer_save_next_frame(renderer, "screenshot");
+					}
 #endif
 
 #ifdef SCENE_1
-					KeySym sym = XkbKeycodeToKeysym(display, evt.xkey.keycode, 0, 0);
-
-					if(sym == XK_s)
+					else if(sym == XK_s)
 					{
 						real32 pixelSize = scene_get_pixel_size(scene);
 						pixelSize -= PIXEL_SIZE_SHIFT_WEIGHT;
@@ -244,13 +258,6 @@ main(int argc, char **argv)
 						{
 							pixelSize = 1.f;
 						}
-
-						scene_set_pixel_size(scene, pixelSize);
-					}
-					else if(sym == XK_w)
-					{
-						real32 pixelSize = scene_get_pixel_size(scene);
-						pixelSize += PIXEL_SIZE_SHIFT_WEIGHT;
 
 						scene_set_pixel_size(scene, pixelSize);
 					}
@@ -271,6 +278,18 @@ main(int argc, char **argv)
 
 		renderer_draw(renderer, scene);
 		canvas_flip(canvas);
+		
+		struct timespec currentTime;
+		clock_gettime(CLOCK_MONOTONIC, &currentTime);
+
+		u64 elapsedNanoSeconds = (1000000000*currentTime.tv_sec + currentTime.tv_nsec) - (1000000000*prevTime.tv_sec + prevTime.tv_nsec);
+
+		char fpsBuffer[50];
+		sprintf(fpsBuffer, "FPS: %ld", lround(1000.f/(elapsedNanoSeconds/1000000)));
+		
+		canvas_draw_text(canvas, 50, 50, fpsBuffer);
+
+		prevTime = currentTime;
 
 		struct timespec delayTime = {0, 1000000*MS_DELAY};
 		nanosleep(&delayTime, NULL);
