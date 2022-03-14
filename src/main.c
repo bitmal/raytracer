@@ -162,6 +162,8 @@ main(int argc, char **argv)
 	}
 #endif
 
+	i32 fpsText = canvas_text_create(canvas);
+
 	XMapWindow(display, canvas_get_window(canvas));
 	XSync(display, False);
 
@@ -276,9 +278,6 @@ main(int argc, char **argv)
 			}
 		}
 
-		renderer_draw(renderer, scene);
-		canvas_flip(canvas);
-		
 		struct timespec currentTime;
 		clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
@@ -286,10 +285,12 @@ main(int argc, char **argv)
 
 		char fpsBuffer[50];
 		sprintf(fpsBuffer, "FPS: %ld", lround(1000.f/(elapsedNanoSeconds/1000000)));
-		
-		canvas_draw_text(canvas, 50, 50, fpsBuffer);
+
+		canvas_text_set(canvas, fpsText, 50, 50, fpsBuffer);
 
 		prevTime = currentTime;
+		renderer_draw(renderer, scene);
+		canvas_flip(canvas);
 
 		struct timespec delayTime = {0, 1000000*MS_DELAY};
 		nanosleep(&delayTime, NULL);

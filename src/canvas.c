@@ -4,11 +4,22 @@
 #include <X11/Xutil.h>
 
 #include <stdlib.h>
+#include <string.h>
+
+typedef struct canvas_text
+{
+	i32 x;
+	i32 y;
+	char *textBuffer;
+	i32 textBufferSize;
+} canvas_text;
 
 struct raytracer_canvas
 {
 	i32 width;
 	i32 height;
+	canvas_text *texts;
+	i32 textCount;
 	
 	struct
 	{
@@ -69,6 +80,9 @@ canvas_create(Display *display, i32 width, i32 height)
 	canvas->buffer.xImage = XCreateImage(display, CopyFromParent, canvas->xlib.depth, 
 			ZPixmap, 0, (char *)canvas->buffer._, width, height, 32, 0);
 
+	canvas->texts = NULL;
+	canvas->textCount = 0;
+
 	return canvas;
 }
 
@@ -97,15 +111,70 @@ canvas_put_square(raytracer_canvas *canvas, i32 x, i32 y,
 	canvas->buffer.isDirty = B32_TRUE;
 }
 
-void
-canvas_draw_text(raytracer_canvas *canvas, i32 x, i32 y, const char *str)
+i32
+canvas_text_create(raytracer_canvas *canvas)
 {
+	i32 index = canvas->textCount;
+
+	if(canvas->textCount > 0)
+	{
+		canvas->texts = realloc(canvas->texts, sizeof(canvas_text)*(++canvas->textCount));
+	}
+	else
+	{
+		canvas->texts = malloc(sizeof(canvas_text)*(++canvas->textCount));
+	}
+
+	canvas->texts[index].x = 0;
+	canvas->texts[index].y = 0;
+	canvas->texts[index].textBuffer = NULL;
+	canvas->texts[index].textBufferSize = 0;
+
+	return index;
+}
+
+void
+canvas_text_set(raytracer_canvas *canvas, i32 textId, i32 x, i32 y, const char *str)
+{
+	canvas_text *text = &canvas->texts[textId];
+
+	text->x = x;
+	text->y = y;
+
 	i32 strLength = 0;
 	for(const char *c = str; *c; ++c, ++strLength);
 
-	XDrawImageString(canvas->xlib.display, canvas->xlib.window, 
-			DefaultGC(canvas->xlib.display, canvas->xlib.screen), x, y, str, 
-			strLength);
+	if(strLength > 0)
+	{
+		if(strLength > (text->textBufferSize + 1))
+		{
+			if(text->textBufferSize > 0)
+			{
+				text->textBuffer = realloc(text->textBuffer, strLength + 1);
+			}
+			else
+			{
+				text->textBuffer = malloc(strLength + 1);
+			}
+
+			text->textBufferSize = strLength + 1;
+			strcpy(text->textBuffer, str);
+		}
+		else
+		{
+			strcpy(text->textBuffer, str);
+		}
+	}
+	else
+	{
+		if(text->textBufferSize < 1)
+		{
+			text->textBuffer = malloc(1);
+			text->textBufferSize = 1;
+		}
+
+		text->textBuffer[0] = '\0';
+	}
 }
 
 Window
@@ -157,6 +226,25 @@ canvas_flip(raytracer_canvas *canvas)
 						canvas->xlib.screen), canvas->buffer.xImage, 0, startHeight, 0, startHeight, 
 					canvas->width, modInterval);
 		}
+		
+		XFlush(canvas->xlib.display);
+		
+		for(i32 i = 0; i < canvas->textCount; ++i)
+		{
+			canvas_text *text = &canvas->texts[i];
+
+			if(text->textBufferSize > 0)
+			{
+				i32 strLength = 0;
+				for(const char *c = text->textBuffer; *c; ++c, ++strLength);
+
+				XDrawImageString(canvas->xlib.display, canvas->xlib.window, 
+						DefaultGC(canvas->xlib.display, canvas->xlib.screen), text->x, text->y, 
+						text->textBuffer, strLength);
+			}
+		}
+
+		XFlush(canvas->xlib.display);
 
 		canvas->buffer.isDirty = B32_FALSE;
 	}
