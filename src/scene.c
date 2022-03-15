@@ -27,6 +27,7 @@ typedef struct scene_sphere
 	v4 position;
 	real32 radius;
 	color32 color;
+	real32 albedo;
 } scene_sphere;
 
 typedef struct scene_light
@@ -134,7 +135,7 @@ scene_world_to_canvas_y(raytracer_scene *scene, raytracer_canvas *canvas,
 }
 
 i32
-scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c)
+scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c, real32 albedo)
 {
 	i32 index = scene->sphereCount;
 
@@ -151,6 +152,7 @@ scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, c
 	sphere->position = *position;
 	sphere->radius = radius;
 	sphere->color = c;
+	sphere->albedo = albedo;
 
 	return index;
 }
@@ -422,14 +424,38 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 
 					v4 lightDirection;
 					vec4_direction(&light->position, &intersectPoint, &lightDirection);
-					
-					real32 dot = vec4_dot3(&lightDirection, &normal);
 
-					if(dot < 0.f)
+					real32 lightDistance = vec4_distance3(&light->position, &intersectPoint);
+					real32 lightIntensityCoefficient = 1.f - (lightDistance/light->range);
+
+					if(lightIntensityCoefficient < 0)
 					{
-						real32 lightIntensity = vec4_distance3(&light->position, &intersectPoint);
-						real32 dropoff = lightIntensity/light->range;
-						intensity += -dot*light->intensity*lightIntensity*(1.f/dropoff);
+						lightIntensityCoefficient = 0;
+					}
+					else if(lightIntensityCoefficient > 1.f)
+					{
+						lightIntensityCoefficient = 1.f;
+					}
+					
+					real32 dot = vec4_dot3(&normal, &lightDirection);
+
+					if(dot > 0.f)
+					{
+						real32 nLength = vec4_magnitude3(&normal);
+						real32 lLength = vec4_magnitude3(&lightDirection);
+						intensity += light->intensity*lightIntensityCoefficient*(dot/(nLength*lLength));
+					}
+
+					v4 specular = normal;
+					vec4_scalar3(&specular, 2.f, &specular);
+					vec4_scalar3(&specular, vec4_dot3(&normal, &lightDirection), &specular);
+					vec4_subtract3(&specular, &lightDirection, &specular);
+
+					real32 dotSpecular = vec4_dot3(&specular, &direction);
+					if(dotSpecular > 0.f)
+					{
+						intensity += light->intensity*lightIntensityCoefficient*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
+									scene->spheres[closestSphereId].albedo);
 					}
 				} break;
 			}

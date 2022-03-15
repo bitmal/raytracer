@@ -51,7 +51,7 @@ scene_world_to_canvas_y(raytracer_scene *scene, raytracer_canvas *canvas,
 		const v4 *worldCoords);
 
 extern i32
-scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c);
+scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c, real32 albedo);
 
 extern i32
 scene_create_light(raytracer_scene *scene, scene_light_t type);

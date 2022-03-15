@@ -57,25 +57,22 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 	i32 width = canvas_get_width(renderer->canvas);
 	i32 height = canvas_get_height(renderer->canvas);
 
-	for(i32 y = 0; y < height; ++y)
-	{
-		for(i32 x = 0; x < width; ++x)
-		{
-			canvas_put_pixel(renderer->canvas, x, y, 0x0);
-		}
-	}
-
 	i32 partitionWidth = width*(pixelSize/width);
 	i32 partitionHeight = height*(pixelSize/height);
 
 	i32 xPartitionCount = width/partitionWidth;
 	i32 yPartitionCount = height/partitionHeight;
 
-	for(i32 _y = 0; _y < yPartitionCount; ++_y)
+	i32 xMin = 0;
+	i32 yMin = 0;
+	i32 xMax = xPartitionCount;
+	i32 yMax = yPartitionCount;
+
+	for(i32 _y = yMin; _y < yMax; ++_y)
 	{
 		i32 y = _y*partitionHeight;
 
-		for(i32 _x = 0; _x < xPartitionCount; ++_x)
+		for(i32 _x = xMin; _x < xMax; ++_x)
 		{
 			i32 x = _x*partitionWidth;
 

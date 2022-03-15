@@ -81,11 +81,11 @@ main(int argc, char **argv)
 
 	void **pointLightValues = malloc(sizeof(void *)*3);
 	pointLightValues[0] = malloc(sizeof(v4));
-	*(v4 *)pointLightValues[0] = vec4_init(0, 1, 2, 0);
+	*(v4 *)pointLightValues[0] = vec4_init(0.5f, 1, 2, 0);
 	pointLightValues[1] = malloc(sizeof(real32));
 	*(real32 *)pointLightValues[1] = 1.f;
 	pointLightValues[2] = malloc(sizeof(real32));
-	*(real32 *)pointLightValues[2] = 0.75f;
+	*(real32 *)pointLightValues[2] = 5;
 	
 	light_set_values(scene, pointLight, 0x1 | 0x4 | 0x8, pointLightValues);
 
@@ -95,19 +95,19 @@ main(int argc, char **argv)
 	free(pointLightValues);
 
 	v4 spherePosition = {{0, -1, 3, 0.f}};
-	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFF0000);
+	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFF0000, 1.f);
 	renderer_push_sphere(renderer, sphereId);
 	v4 spherePosition1 = {{-1.5, 0, 4, 0.f}};
-	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFF);
+	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFF, 1.f);
 	renderer_push_sphere(renderer, sphereId1);
 	v4 spherePosition2 = {{-1, -1, 3, 0.f}};
-	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFF00);
+	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFF00, 1.f);
 	renderer_push_sphere(renderer, sphereId2);
 	v4 spherePosition3 = {{0.75f, -1, 2.5f, 0.f}};
-	i32 sphereId3 = scene_create_sphere(scene, &spherePosition3, 0.75f, 0xFF00FF);
+	i32 sphereId3 = scene_create_sphere(scene, &spherePosition3, 0.75f, 0xFF00FF, 1.f);
 	renderer_push_sphere(renderer, sphereId3);
 	v4 spherePosition4 = {{0.75f, -0.25f, 2.5f, 0.f}};
-	i32 sphereId4 = scene_create_sphere(scene, &spherePosition4, 0.0625f, 0xFFFF00);
+	i32 sphereId4 = scene_create_sphere(scene, &spherePosition4, 0.0625f, 0xFFFF00, 1.f);
 	renderer_push_sphere(renderer, sphereId4);
 #endif
 
@@ -278,6 +278,8 @@ main(int argc, char **argv)
 			}
 		}
 
+		renderer_draw(renderer, scene);
+		
 		struct timespec currentTime;
 		clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
@@ -285,11 +287,11 @@ main(int argc, char **argv)
 
 		char fpsBuffer[50];
 		sprintf(fpsBuffer, "FPS: %ld", lround(1000.f/(elapsedNanoSeconds/1000000)));
+		
+		prevTime = currentTime;
 
 		canvas_text_set(canvas, fpsText, 50, 50, fpsBuffer);
 
-		prevTime = currentTime;
-		renderer_draw(renderer, scene);
 		canvas_flip(canvas);
 
 		struct timespec delayTime = {0, 1000000*MS_DELAY};
