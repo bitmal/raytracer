@@ -442,9 +442,16 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						real32 coeff = pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
 									scene->spheres[closestSphereId].albedo);
 
-						colorIntensity.r += coeff*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
-						colorIntensity.g += coeff*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
-						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
+						v4 specularColor = {{(real32)((light->color >> 16) & 0xFF)/(real32)0xFF,
+							(real32)((light->color >> 8) & 0xFF)/(real32)0xFF,
+							(real32)((light->color) & 0xFF)/(real32)0xFF,
+							0.f}};
+
+						real32 mag = vec4_magnitude3(&specularColor);
+
+						colorIntensity.r += coeff*mag;
+						colorIntensity.g += coeff*mag;
+						colorIntensity.b += coeff*mag;
 					}
 				} break;
 				
@@ -492,9 +499,16 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						real32 coeff = lightIntensityCoefficient*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
 									scene->spheres[closestSphereId].albedo);
 
-						colorIntensity.r += coeff*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
-						colorIntensity.g += coeff*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
-						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
+						v4 specularColor = {{(real32)((light->color >> 16) & 0xFF)/(real32)0xFF,
+							(real32)((light->color >> 8) & 0xFF)/(real32)0xFF,
+							(real32)((light->color) & 0xFF)/(real32)0xFF,
+							0.f}};
+
+						real32 mag = vec4_magnitude3(&specularColor);
+
+						colorIntensity.r += coeff*mag;
+						colorIntensity.g += coeff*mag;
+						colorIntensity.b += coeff*mag;
 					}
 				} break;
 			}

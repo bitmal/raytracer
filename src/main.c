@@ -54,7 +54,7 @@ main(int argc, char **argv)
 
 	void **ambientLightValues = malloc(sizeof(void *));
 	ambientLightValues[0] = malloc(sizeof(real32));
-	*(real32*)ambientLightValues[0] = 0.21f;
+	*(real32*)ambientLightValues[0] = 0.17f;
 
 	light_set_values(scene, ambientLight, LIGHT_VALUE_INTENSITY, ambientLightValues);
 
@@ -89,6 +89,24 @@ main(int argc, char **argv)
 	
 	light_set_values(scene, pointLight, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
 			LIGHT_VALUE_RANGE, pointLightValues);
+
+	free(pointLightValues[0]);
+	free(pointLightValues[1]);
+	free(pointLightValues[2]);
+	free(pointLightValues);
+	
+	i32 pointLight2 = scene_create_light(scene, LIGHT_POINT);
+
+	void **pointLightValues2 = malloc(sizeof(void *)*3);
+	pointLightValues2[0] = malloc(sizeof(v4));
+	*(v4 *)pointLightValues2[0] = vec4_init(-1.f, 0, 2.5f, 0);
+	pointLightValues2[1] = malloc(sizeof(color32));
+	*(color32 *)pointLightValues2[1] = 0xFF;
+	pointLightValues2[2] = malloc(sizeof(real32));
+	*(real32 *)pointLightValues2[2] = 20;
+	
+	light_set_values(scene, pointLight2, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
+			LIGHT_VALUE_RANGE, pointLightValues2);
 
 	free(pointLightValues[0]);
 	free(pointLightValues[1]);
@@ -230,6 +248,16 @@ main(int argc, char **argv)
 						camPosition.y += CAM_MOVEMENT;
 						scene_set_camera_position(scene, &camPosition);
 					}
+					else if (sym == XK_u)
+					{
+						camPosition.z += CAM_MOVEMENT;
+						scene_set_camera_position(scene, &camPosition);
+					}
+					else if (sym == XK_n)
+					{
+						camPosition.z -= CAM_MOVEMENT;
+						scene_set_camera_position(scene, &camPosition);
+					}
 
 #ifdef SCENE_0 
 					else if(sym == XK_a)
@@ -338,7 +366,8 @@ main(int argc, char **argv)
 		struct timespec currentTime;
 		clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
-		u64 elapsedNanoSeconds = (1000000000*currentTime.tv_sec + currentTime.tv_nsec) - (1000000000*prevTime.tv_sec + prevTime.tv_nsec);
+		u64 elapsedNanoSeconds = (1000000000*currentTime.tv_sec + currentTime.tv_nsec) - 
+			(1000000000*prevTime.tv_sec + prevTime.tv_nsec);
 
 		char fpsBuffer[50];
 		sprintf(fpsBuffer, "FPS: %ld", lround(1000.f/(elapsedNanoSeconds/1000000)));
