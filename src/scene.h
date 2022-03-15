@@ -66,6 +66,9 @@ light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **val
 extern void
 light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value);
 
+extern void
+light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value);
+
 extern b32
 scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *outColor);
 

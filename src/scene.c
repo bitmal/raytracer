@@ -184,6 +184,7 @@ scene_create_light(raytracer_scene *scene, scene_light_t type)
 	light->direction = vec4_init(0, -1.f, 0, 0);
 	light->intensity = 1.f;
 	light->range = 1.f;
+	light->color = 0xFFFFFF;
 
 	return index;
 }
@@ -245,91 +246,83 @@ light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **val
 void
 light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
 {
-	scene_light *light = &scene->lights[lightId];
-
-	switch(light->type)
+	switch(valueFlag)
 	{
-		case LIGHT_AMBIENT:
+		case LIGHT_VALUE_TYPE:
 		{
-			switch(valueFlag)
-			{
-				case LIGHT_VALUE_TYPE:
-				{
-					light->type = *(scene_light_t *)value;
-				} break;
-				
-				case LIGHT_VALUE_INTENSITY:
-				{
-					light->intensity = *(real32 *)value;
-				} break;
-
-				default:
-				{
-					fprintf(stderr, "Cannot set light value '%x' as type '%d'!\n", valueFlag, light->type); 
-				} break;
-			}
-		} break;
-
-		case LIGHT_DIRECTIONAL:
-		{
-			switch(valueFlag)
-			{
-				case LIGHT_VALUE_TYPE:
-				{
-					light->type = *(scene_light_t *)value;
-				} break;
-				
-				case LIGHT_VALUE_COLOR:
-				{
-					light->color = *(color32 *)value;
-				} break;
-				
-				case LIGHT_VALUE_DIRECTION:
-				{
-					light->direction = *(v4 *)value;
-				} break;
-
-				default:
-				{
-					fprintf(stderr, "Cannot set light value '%x' as type '%d'!\n", valueFlag, light->type); 
-				} break;
-			}
+			scene->lights[lightId].type = *(scene_light_t *)value;
 		} break;
 		
-		case LIGHT_POINT:
+		case LIGHT_VALUE_POSITION:
 		{
-			switch(valueFlag)
-			{
-				case LIGHT_VALUE_TYPE:
-				{
-					light->type = *(scene_light_t *)value;
-				} break;
-				
-				case LIGHT_VALUE_POSITION:
-				{
-					light->position = *(v4 *)value;
-				} break;
-				
-				case LIGHT_VALUE_COLOR:
-				{
-					light->color = *(color32 *)value;
-				} break;
-				
-				case LIGHT_VALUE_RANGE:
-				{
-					light->range = *(real32 *)value;
-				} break;
-
-				default:
-				{
-					fprintf(stderr, "Cannot set light value '%x' as type '%d'!\n", valueFlag, light->type); 
-				} break;
-			}
+			scene->lights[lightId].position = *(v4 *)value;
 		} break;
 		
+		case LIGHT_VALUE_DIRECTION:
+		{
+			scene->lights[lightId].direction = *(v4 *)value;
+		} break;
+		
+		case LIGHT_VALUE_COLOR:
+		{
+			scene->lights[lightId].color = *(color32 *)value;
+		} break;
+		
+		case LIGHT_VALUE_INTENSITY:
+		{
+			scene->lights[lightId].intensity = *(real32 *)value;
+		} break;
+		
+		case LIGHT_VALUE_RANGE:
+		{
+			scene->lights[lightId].range = *(real32 *)value;
+		} break;
+
 		default:
 		{
-			fprintf(stderr, "Unknown light type, '%d'. Cannot set value!\n", light->type);
+			fprintf(stderr, "Cannot set unknown value of light!\n");
+		} break;
+	}
+}
+
+void
+light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
+{
+	switch(valueFlag)
+	{
+		case LIGHT_VALUE_TYPE:
+		{
+			*(scene_light_t *)value = scene->lights[lightId].type;
+		} break;
+		
+		case LIGHT_VALUE_POSITION:
+		{
+			*(v4 *)value = scene->lights[lightId].position;
+		} break;
+		
+		case LIGHT_VALUE_DIRECTION:
+		{
+			*(v4 *)value = scene->lights[lightId].direction;
+		} break;
+		
+		case LIGHT_VALUE_COLOR:
+		{
+			*(color32 *)value = scene->lights[lightId].color;
+		} break;
+		
+		case LIGHT_VALUE_INTENSITY:
+		{
+			*(real32 *)value = scene->lights[lightId].intensity;
+		} break;
+		
+		case LIGHT_VALUE_RANGE:
+		{
+			*(real32 *)value = scene->lights[lightId].range;
+		} break;
+
+		default:
+		{
+			fprintf(stderr, "Cannot get unknown value from light!\n");
 		} break;
 	}
 }
@@ -405,7 +398,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 		v4 normal;
 		vec4_direction(&scene->spheres[closestSphereId].position, &intersectPoint, &normal);
 
-		real32 intensity = 0.f;
+		v4 colorIntensity = {};
 
 		for(i32 i = 0; i < scene->lightCount; ++i)
 		{
@@ -415,7 +408,9 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 			{
 				case LIGHT_AMBIENT:
 				{
-					intensity += light->intensity;
+					colorIntensity.r += light->intensity;
+					colorIntensity.g += light->intensity;
+					colorIntensity.b += light->intensity;
 				} break;
 				
 				case LIGHT_DIRECTIONAL:
@@ -428,7 +423,11 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					{
 						real32 nLength = vec4_magnitude3(&normal);
 						real32 lLength = vec4_magnitude3(&light->direction);
-						intensity += light->intensity*(-dot/(nLength*lLength));
+						real32 coeff = -dot/(nLength*lLength);
+						
+						colorIntensity.r += coeff*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
+						colorIntensity.g += coeff*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
+						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 
 					v4 specular = normal;
@@ -440,8 +439,12 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 
 					if(dotSpecular > 0.f)
 					{
-						intensity += light->intensity*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
+						real32 coeff = pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
 									scene->spheres[closestSphereId].albedo);
+
+						colorIntensity.r += coeff*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
+						colorIntensity.g += coeff*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
+						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 				} break;
 				
@@ -470,7 +473,11 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					{
 						real32 nLength = vec4_magnitude3(&normal);
 						real32 lLength = vec4_magnitude3(&lightDirection);
-						intensity += light->intensity*lightIntensityCoefficient*(-dot/(nLength*lLength));
+						real32 coeff = lightIntensityCoefficient*(-dot/(nLength*lLength));
+
+						colorIntensity.r += coeff*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
+						colorIntensity.g += coeff*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
+						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 
 					v4 specular = normal;
@@ -482,21 +489,33 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 
 					if(dotSpecular > 0.f)
 					{
-						intensity += light->intensity*lightIntensityCoefficient*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
+						real32 coeff = lightIntensityCoefficient*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
 									scene->spheres[closestSphereId].albedo);
+
+						colorIntensity.r += coeff*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
+						colorIntensity.g += coeff*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
+						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 				} break;
 			}
 		}
 
-		if(intensity > 1.f)
+		if(colorIntensity.r > 1.f)
 		{
-			intensity = 1.f;
+			colorIntensity.r = 1.f;
+		}
+		if(colorIntensity.g > 1.f)
+		{
+			colorIntensity.g = 1.f;
+		}
+		if(colorIntensity.b > 1.f)
+		{
+			colorIntensity.b = 1.f;
 		}
 
-		*outColor = ((u32)(((c >> 16) & 0xFF)*intensity) << 16) |
-			((u32)(((c >> 8) & 0xFF)*intensity) << 8) |
-			((u32)(((c) & 0xFF)*intensity));
+		*outColor = ((u32)(((c >> 16) & 0xFF)*colorIntensity.r) << 16) |
+			((u32)(((c >> 8) & 0xFF)*colorIntensity.g) << 8) |
+			((u32)(((c) & 0xFF)*colorIntensity.b));
 
 		return B32_TRUE;
 	}

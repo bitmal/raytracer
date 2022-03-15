@@ -82,12 +82,13 @@ main(int argc, char **argv)
 	void **pointLightValues = malloc(sizeof(void *)*3);
 	pointLightValues[0] = malloc(sizeof(v4));
 	*(v4 *)pointLightValues[0] = vec4_init(0.f, 2, 2, 0);
-	pointLightValues[1] = malloc(sizeof(real32));
-	*(real32 *)pointLightValues[1] = 1.f;
+	pointLightValues[1] = malloc(sizeof(color32));
+	*(color32 *)pointLightValues[1] = 0x1FFFD2;
 	pointLightValues[2] = malloc(sizeof(real32));
 	*(real32 *)pointLightValues[2] = 20;
 	
-	light_set_values(scene, pointLight, LIGHT_VALUE_POSITION | LIGHT_VALUE_INTENSITY | LIGHT_VALUE_RANGE, pointLightValues);
+	light_set_values(scene, pointLight, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
+			LIGHT_VALUE_RANGE, pointLightValues);
 
 	free(pointLightValues[0]);
 	free(pointLightValues[1]);
@@ -95,19 +96,19 @@ main(int argc, char **argv)
 	free(pointLightValues);
 
 	v4 spherePosition = {{0, -1, 3, 0.f}};
-	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFF0000, 10.f);
+	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFFFFFF, 100.f);
 	renderer_push_sphere(renderer, sphereId);
 	v4 spherePosition1 = {{-1.5, 0, 4, 0.f}};
-	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFF, 10.f);
+	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFFFF, 100.f);
 	renderer_push_sphere(renderer, sphereId1);
 	v4 spherePosition2 = {{-1, -1, 3, 0.f}};
-	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFF00, 10.f);
+	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFFFFFF, 25.f);
 	renderer_push_sphere(renderer, sphereId2);
 	v4 spherePosition3 = {{0.75f, -1, 2.5f, 0.f}};
-	i32 sphereId3 = scene_create_sphere(scene, &spherePosition3, 0.75f, 0xFF00FF, 10.f);
+	i32 sphereId3 = scene_create_sphere(scene, &spherePosition3, 0.75f, 0xFFFFFF, 25.f);
 	renderer_push_sphere(renderer, sphereId3);
 	v4 spherePosition4 = {{0.75f, -0.25f, 2.5f, 0.f}};
-	i32 sphereId4 = scene_create_sphere(scene, &spherePosition4, 0.0625f, 0xFFFF00, 1.f);
+	i32 sphereId4 = scene_create_sphere(scene, &spherePosition4, 0.0625f, 0xFFFFFF, 25.f);
 	renderer_push_sphere(renderer, sphereId4);
 #endif
 
@@ -164,16 +165,22 @@ main(int argc, char **argv)
 
 	i32 fpsText = canvas_text_create(canvas);
 	v4 camPosition = {{0, 0, 0, 0}};
+	v4 pointLightIntensity = {};
+	{
+		color32 color;
+		light_get_value(scene, pointLight, LIGHT_VALUE_COLOR, &color);
+		pointLightIntensity.r = (real32)((color >> 16) & 0xFF)/(real32)0xFF;
+		pointLightIntensity.g = (real32)((color >> 8) & 0xFF)/(real32)0xFF;
+		pointLightIntensity.b = (real32)((color) & 0xFF)/(real32)0xFF;
+	}
+
+#define LIGHT_DELTA_MAGNITUDE 0.01f
 #define CAM_MOVEMENT 0.1f
 
 	XMapWindow(display, canvas_get_window(canvas));
 	XSync(display, False);
 
 	b32 isRunning = B32_TRUE;
-
-#ifdef SCENE_0
-	real32 lightIntensity = 1.f;
-#endif
 
 	struct timespec prevTime;
 	clock_gettime(CLOCK_MONOTONIC, &prevTime);
@@ -227,25 +234,51 @@ main(int argc, char **argv)
 #ifdef SCENE_0 
 					else if(sym == XK_a)
 					{
-						lightIntensity -= 0.1f;
-
-						if(lightIntensity < 0.f)
+						pointLightIntensity.r -= LIGHT_DELTA_MAGNITUDE;
+						if(pointLightIntensity.r < 0.f)
 						{
-							lightIntensity = 0.f;
+							pointLightIntensity.r = 0.f;
+						}
+						pointLightIntensity.g -= LIGHT_DELTA_MAGNITUDE;
+						if(pointLightIntensity.g < 0.f)
+						{
+							pointLightIntensity.g = 0.f;
+						}
+						pointLightIntensity.b -= LIGHT_DELTA_MAGNITUDE;
+						if(pointLightIntensity.b < 0.f)
+						{
+							pointLightIntensity.b = 0.f;
 						}
 
-						light_set_value(scene, pointLight, LIGHT_VALUE_INTENSITY, &lightIntensity);
+						color32 c = ((u32)(0xFF*pointLightIntensity.r) << 16) |
+							((u32)(0xFF*pointLightIntensity.g) << 8) |
+							((u32)(0xFF*pointLightIntensity.b));
+						
+						light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &c);
 					}
 					else if(sym == XK_d)
 					{
-						lightIntensity += 0.1f;
-
-						if(lightIntensity > 1.f)
+						pointLightIntensity.r += LIGHT_DELTA_MAGNITUDE;
+						if(pointLightIntensity.r > 1.f)
 						{
-							lightIntensity = 1.f;
+							pointLightIntensity.r = 1.f;
 						}
+						pointLightIntensity.g += LIGHT_DELTA_MAGNITUDE;
+						if(pointLightIntensity.g > 1.f)
+						{
+							pointLightIntensity.g = 1.f;
+						}
+						pointLightIntensity.b += LIGHT_DELTA_MAGNITUDE;
+						if(pointLightIntensity.b > 1.f)
+						{
+							pointLightIntensity.b = 1.f;
+						}
+
+						color32 c = ((u32)(0xFF*pointLightIntensity.r) << 16) |
+							((u32)(0xFF*pointLightIntensity.g) << 8) |
+							((u32)(0xFF*pointLightIntensity.b));
 						
-						light_set_value(scene, pointLight, LIGHT_VALUE_INTENSITY, &lightIntensity);
+						light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &c);
 					}
 					else if(sym == XK_s)
 					{
