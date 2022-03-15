@@ -35,6 +35,7 @@ typedef struct scene_light
 	scene_light_t type;
 	v4 position;
 	v4 direction;
+	color32 color;
 	real32 intensity;
 	real32 range;
 } scene_light;
@@ -80,6 +81,12 @@ scene_set_camera_viewport(raytracer_scene *scene, real32 left, real32 right, rea
 	scene->camera.viewport.front = front;
 	scene->camera.viewport.back = scene->camera.viewport.front + distance;
 	scene->camera.viewport.fov = fov;
+}
+
+void
+scene_set_camera_position(raytracer_scene *scene, const v4 *position)
+{
+	scene->camera.position = *position;
 }
 
 void
@@ -211,6 +218,11 @@ light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **val
 					light->direction = *((v4 **)values)[valuesSet++];
 				} break;
 				
+				case LIGHT_VALUE_COLOR:
+				{
+					light->color = *((color32 **)values)[valuesSet++];
+				} break;
+				
 				case LIGHT_VALUE_INTENSITY:
 				{
 					light->intensity = *((real32 **)values)[valuesSet++];
@@ -267,9 +279,9 @@ light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
 					light->type = *(scene_light_t *)value;
 				} break;
 				
-				case LIGHT_VALUE_INTENSITY:
+				case LIGHT_VALUE_COLOR:
 				{
-					light->intensity = *(real32 *)value;
+					light->color = *(color32 *)value;
 				} break;
 				
 				case LIGHT_VALUE_DIRECTION:
@@ -298,9 +310,9 @@ light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
 					light->position = *(v4 *)value;
 				} break;
 				
-				case LIGHT_VALUE_INTENSITY:
+				case LIGHT_VALUE_COLOR:
 				{
-					light->intensity = *(real32 *)value;
+					light->color = *(color32 *)value;
 				} break;
 				
 				case LIGHT_VALUE_RANGE:
@@ -410,11 +422,26 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 				{
 					scene_light *light = &scene->lights[i];
 
-					real32 dot = vec4_dot3(&light->direction, &normal);
+					real32 dot = vec4_dot3(&normal, &light->direction);
 
 					if(dot < 0.f)
 					{
-						intensity += -dot*light->intensity;
+						real32 nLength = vec4_magnitude3(&normal);
+						real32 lLength = vec4_magnitude3(&light->direction);
+						intensity += light->intensity*(-dot/(nLength*lLength));
+					}
+
+					v4 specular = normal;
+					vec4_scalar3(&specular, 2.f, &specular);
+					vec4_scalar3(&specular, vec4_dot3(&normal, &light->direction), &specular);
+					vec4_subtract3(&specular, &light->direction, &specular);
+
+					real32 dotSpecular = vec4_dot3(&specular, &direction);
+
+					if(dotSpecular > 0.f)
+					{
+						intensity += light->intensity*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
+									scene->spheres[closestSphereId].albedo);
 					}
 				} break;
 				
@@ -439,11 +466,11 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					
 					real32 dot = vec4_dot3(&normal, &lightDirection);
 
-					if(dot > 0.f)
+					if(dot < 0.f)
 					{
 						real32 nLength = vec4_magnitude3(&normal);
 						real32 lLength = vec4_magnitude3(&lightDirection);
-						intensity += light->intensity*lightIntensityCoefficient*(dot/(nLength*lLength));
+						intensity += light->intensity*lightIntensityCoefficient*(-dot/(nLength*lLength));
 					}
 
 					v4 specular = normal;
@@ -452,6 +479,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					vec4_subtract3(&specular, &lightDirection, &specular);
 
 					real32 dotSpecular = vec4_dot3(&specular, &direction);
+
 					if(dotSpecular > 0.f)
 					{
 						intensity += light->intensity*lightIntensityCoefficient*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 

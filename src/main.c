@@ -56,7 +56,7 @@ main(int argc, char **argv)
 	ambientLightValues[0] = malloc(sizeof(real32));
 	*(real32*)ambientLightValues[0] = 0.21f;
 
-	light_set_values(scene, ambientLight, 0x4, ambientLightValues);
+	light_set_values(scene, ambientLight, LIGHT_VALUE_INTENSITY, ambientLightValues);
 
 	free(ambientLightValues[0]);
 	free(ambientLightValues);
@@ -81,13 +81,13 @@ main(int argc, char **argv)
 
 	void **pointLightValues = malloc(sizeof(void *)*3);
 	pointLightValues[0] = malloc(sizeof(v4));
-	*(v4 *)pointLightValues[0] = vec4_init(0.5f, 1, 2, 0);
+	*(v4 *)pointLightValues[0] = vec4_init(0.f, 2, 2, 0);
 	pointLightValues[1] = malloc(sizeof(real32));
 	*(real32 *)pointLightValues[1] = 1.f;
 	pointLightValues[2] = malloc(sizeof(real32));
-	*(real32 *)pointLightValues[2] = 5;
+	*(real32 *)pointLightValues[2] = 20;
 	
-	light_set_values(scene, pointLight, 0x1 | 0x4 | 0x8, pointLightValues);
+	light_set_values(scene, pointLight, LIGHT_VALUE_POSITION | LIGHT_VALUE_INTENSITY | LIGHT_VALUE_RANGE, pointLightValues);
 
 	free(pointLightValues[0]);
 	free(pointLightValues[1]);
@@ -95,16 +95,16 @@ main(int argc, char **argv)
 	free(pointLightValues);
 
 	v4 spherePosition = {{0, -1, 3, 0.f}};
-	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFF0000, 1.f);
+	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFF0000, 10.f);
 	renderer_push_sphere(renderer, sphereId);
 	v4 spherePosition1 = {{-1.5, 0, 4, 0.f}};
-	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFF, 1.f);
+	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFF, 10.f);
 	renderer_push_sphere(renderer, sphereId1);
 	v4 spherePosition2 = {{-1, -1, 3, 0.f}};
-	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFF00, 1.f);
+	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFF00, 10.f);
 	renderer_push_sphere(renderer, sphereId2);
 	v4 spherePosition3 = {{0.75f, -1, 2.5f, 0.f}};
-	i32 sphereId3 = scene_create_sphere(scene, &spherePosition3, 0.75f, 0xFF00FF, 1.f);
+	i32 sphereId3 = scene_create_sphere(scene, &spherePosition3, 0.75f, 0xFF00FF, 10.f);
 	renderer_push_sphere(renderer, sphereId3);
 	v4 spherePosition4 = {{0.75f, -0.25f, 2.5f, 0.f}};
 	i32 sphereId4 = scene_create_sphere(scene, &spherePosition4, 0.0625f, 0xFFFF00, 1.f);
@@ -163,6 +163,8 @@ main(int argc, char **argv)
 #endif
 
 	i32 fpsText = canvas_text_create(canvas);
+	v4 camPosition = {{0, 0, 0, 0}};
+#define CAM_MOVEMENT 0.1f
 
 	XMapWindow(display, canvas_get_window(canvas));
 	XSync(display, False);
@@ -201,6 +203,26 @@ main(int argc, char **argv)
 
 						scene_set_pixel_size(scene, pixelSize);
 					}
+					else if (sym == XK_h)
+					{
+						camPosition.x -= CAM_MOVEMENT;
+						scene_set_camera_position(scene, &camPosition);
+					}
+					else if (sym == XK_l)
+					{
+						camPosition.x += CAM_MOVEMENT;
+						scene_set_camera_position(scene, &camPosition);
+					}
+					else if (sym == XK_j)
+					{
+						camPosition.y -= CAM_MOVEMENT;
+						scene_set_camera_position(scene, &camPosition);
+					}
+					else if (sym == XK_k)
+					{
+						camPosition.y += CAM_MOVEMENT;
+						scene_set_camera_position(scene, &camPosition);
+					}
 
 #ifdef SCENE_0 
 					else if(sym == XK_a)
@@ -212,7 +234,7 @@ main(int argc, char **argv)
 							lightIntensity = 0.f;
 						}
 
-						light_set_value(scene, pointLight, 0x4, &lightIntensity);
+						light_set_value(scene, pointLight, LIGHT_VALUE_INTENSITY, &lightIntensity);
 					}
 					else if(sym == XK_d)
 					{
@@ -223,7 +245,7 @@ main(int argc, char **argv)
 							lightIntensity = 1.f;
 						}
 						
-						light_set_value(scene, pointLight, 0x4, &lightIntensity);
+						light_set_value(scene, pointLight, LIGHT_VALUE_INTENSITY, &lightIntensity);
 					}
 					else if(sym == XK_s)
 					{

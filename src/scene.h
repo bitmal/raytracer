@@ -19,8 +19,9 @@ typedef enum scene_light_type
 #define LIGHT_VALUE_TYPE 0x0
 #define LIGHT_VALUE_POSITION 0x1
 #define LIGHT_VALUE_DIRECTION 0x2
-#define LIGHT_VALUE_INTENSITY 0x4
-#define LIGHT_VALUE_RANGE 0x8
+#define LIGHT_VALUE_COLOR 0x4
+#define LIGHT_VALUE_INTENSITY 0x8
+#define LIGHT_VALUE_RANGE 0x10
 
 extern raytracer_scene *
 scene_init();
@@ -28,6 +29,9 @@ scene_init();
 extern void
 scene_set_camera_viewport(raytracer_scene *scene, real32 left, real32 right, real32 top,
 		real32 bottom, real32 front, real32 distance, real32 fov);
+
+extern void
+scene_set_camera_position(raytracer_scene *scene, const v4 *position);
 
 extern void
 scene_set_pixel_size(raytracer_scene *scene, real32 density);
