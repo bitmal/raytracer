@@ -50,6 +50,10 @@ main(int argc, char **argv)
 
 // SCENE_0
 #ifdef SCENE_0
+	i32 texture = renderer_create_texture_from_file(renderer, "screenshots/screenshot_2.scrn");
+	i32 overlay = renderer_create_overlay(renderer, 0, 0, WINDOW_WIDTH, 
+		WINDOW_HEIGHT, texture);
+
 	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
 
 	void **ambientLightValues = malloc(sizeof(void *));
@@ -108,10 +112,28 @@ main(int argc, char **argv)
 	light_set_values(scene, pointLight2, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
 			LIGHT_VALUE_RANGE, pointLightValues2);
 
-	free(pointLightValues[0]);
-	free(pointLightValues[1]);
-	free(pointLightValues[2]);
-	free(pointLightValues);
+	free(pointLightValues2[0]);
+	free(pointLightValues2[1]);
+	free(pointLightValues2[2]);
+	free(pointLightValues2);
+	
+	i32 pointLight3 = scene_create_light(scene, LIGHT_POINT);
+	
+	void **pointLightValues3 = malloc(sizeof(void *)*3);
+	pointLightValues3[0] = malloc(sizeof(v4));
+	*(v4 *)pointLightValues3[0] = vec4_init(2.f, 0, 2.5f, 0);
+	pointLightValues3[1] = malloc(sizeof(color32));
+	*(color32 *)pointLightValues3[1] = 0xFF0000;
+	pointLightValues3[2] = malloc(sizeof(real32));
+	*(real32 *)pointLightValues3[2] = 20;
+	
+	light_set_values(scene, pointLight3, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
+			LIGHT_VALUE_RANGE, pointLightValues3);
+
+	free(pointLightValues3[0]);
+	free(pointLightValues3[1]);
+	free(pointLightValues3[2]);
+	free(pointLightValues3);
 
 	v4 spherePosition = {{0, -1, 3, 0.f}};
 	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFFFFFF, 100.f);
@@ -260,6 +282,10 @@ main(int argc, char **argv)
 					}
 
 #ifdef SCENE_0 
+					else if(sym == XK_space)
+					{
+						renderer_toggle_overlay(renderer, overlay);
+					}
 					else if(sym == XK_a)
 					{
 						pointLightIntensity.r -= LIGHT_DELTA_MAGNITUDE;
