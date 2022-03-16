@@ -22,6 +22,9 @@
 #include <time.h>
 #include <tgmath.h>
 #include <math.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
@@ -40,9 +43,14 @@ main(int argc, char **argv)
 		return -1;
 	}
 
-	raytracer_canvas *canvas = canvas_create(display, WINDOW_WIDTH, WINDOW_HEIGHT);
+	raytracer_canvas *mainCanvas = canvas_create(display, NULL, WINDOW_WIDTH, WINDOW_HEIGHT);
+	raytracer_canvas *screenshotCanvas = canvas_create(display, mainCanvas, WINDOW_WIDTH, WINDOW_HEIGHT);
 	raytracer_scene *scene = scene_init();
-	raytracer_renderer *renderer = renderer_init(canvas);
+	raytracer_renderer *renderer = renderer_init(mainCanvas);
+
+	i32 *screenshotTextures = NULL;
+	i32 screenshotTextureCount = 0;
+	i32 currentScreenshot = -1;
 
 	scene_set_pixel_size(scene, PIXEL_SIZE);
 
@@ -50,10 +58,6 @@ main(int argc, char **argv)
 
 // SCENE_0
 #ifdef SCENE_0
-	i32 texture = renderer_create_texture_from_file(renderer, "screenshots/screenshot_2.scrn");
-	i32 overlay = renderer_create_overlay(renderer, 0, 0, WINDOW_WIDTH, 
-		WINDOW_HEIGHT, texture);
-
 	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
 
 	void **ambientLightValues = malloc(sizeof(void *));
@@ -195,7 +199,7 @@ main(int argc, char **argv)
 			i32 x = partitionWidth*objectX + partitionWidth/2;
 
 			v4 spherePosition;
-			scene_canvas_to_world_coordinates(scene, canvas, x, y, &spherePosition);
+			scene_canvas_to_world_coordinates(scene, mainCanvas, x, y, &spherePosition);
 
 			i32 sphereId = scene_create_sphere(scene, &spherePosition, (real32)(OBJECT_COUNT)/partitionWidth, 0xFF00FF);
 			renderer_push_sphere(renderer, sphereId);
@@ -203,7 +207,7 @@ main(int argc, char **argv)
 	}
 #endif
 
-	i32 fpsText = canvas_text_create(canvas);
+	i32 fpsText = canvas_text_create(mainCanvas);
 	v4 camPosition = {{0, 0, 0, 0}};
 	v4 pointLightIntensity = {};
 	{
@@ -213,11 +217,13 @@ main(int argc, char **argv)
 		pointLightIntensity.g = (real32)((color >> 8) & 0xFF)/(real32)0xFF;
 		pointLightIntensity.b = (real32)((color) & 0xFF)/(real32)0xFF;
 	}
+	
+	i32 screenshotText = canvas_text_create(screenshotCanvas);
 
 #define LIGHT_DELTA_MAGNITUDE 0.01f
 #define CAM_MOVEMENT 0.1f
 
-	XMapWindow(display, canvas_get_window(canvas));
+	XMapWindow(display, canvas_get_window(mainCanvas));
 	XSync(display, False);
 
 	b32 isRunning = B32_TRUE;
@@ -280,12 +286,128 @@ main(int argc, char **argv)
 						camPosition.z -= CAM_MOVEMENT;
 						scene_set_camera_position(scene, &camPosition);
 					}
-
-#ifdef SCENE_0 
 					else if(sym == XK_space)
 					{
-						renderer_toggle_overlay(renderer, overlay);
+						if(!canvas_is_show(screenshotCanvas))
+						{
+							if(!screenshotTextures)
+							{
+								DIR *d = opendir("screenshots");
+								if(d)
+								{
+									const char *filename = NULL;
+
+									struct dirent *dir;
+									while((dir = readdir(d)))
+									{
+										if(strcmp(dir->d_name, ".scrn") > 0)
+										{
+											filename = dir->d_name;
+											break;
+										}
+									}
+
+									if(filename)
+									{
+										char pathBuffer[50];
+										sprintf(pathBuffer, "screenshots/%s", filename);
+
+										screenshotTextures = malloc(sizeof(i32));
+										screenshotTextures[0] = renderer_create_texture_from_file(renderer, pathBuffer);
+										++screenshotTextureCount;
+
+										currentScreenshot = 0;
+									}
+									else
+									{
+										fprintf(stderr, "No screenshots to show!\n");
+									}
+
+									closedir(d);
+								}
+								else
+								{
+									fprintf(stderr, "No screenshots to show!\n");
+								}
+							}
+
+							if(currentScreenshot > -1)
+							{
+								i32 textureWidth = renderer_get_texture_width(renderer, screenshotTextures[currentScreenshot]);
+								i32 textureHeight = renderer_get_texture_height(renderer, screenshotTextures[currentScreenshot]);
+
+								canvas_resize(screenshotCanvas, textureWidth, textureHeight);
+								canvas_show(screenshotCanvas);
+							}
+							else
+							{
+								fprintf(stderr, "No screenshots to show!\n");
+							}
+						}
+						else
+						{
+							canvas_hide(screenshotCanvas);
+						}
 					}
+					else if(sym == XK_x)
+					{
+						if(screenshotTextureCount > 0)
+						{
+							++currentScreenshot;
+							if(currentScreenshot == screenshotTextureCount)
+							{
+								const char *filename = NULL;
+								DIR *d = opendir("screenshots");
+								struct dirent *dir;
+
+								for(i32 i = 0; i < screenshotTextureCount;)
+								{
+									if((dir = readdir(d)))
+									{
+										if(strcmp(dir->d_name, ".scrn") > 0)
+										{
+											++i;
+										}
+									}
+									else
+									{
+										break;
+									}
+								}
+
+								while((dir = readdir(d)))
+								{
+									if(strcmp(dir->d_name, ".scrn") > 0)
+									{
+										filename = dir->d_name;
+										break;
+									}
+								}
+
+								closedir(d);
+
+								if(filename)
+								{
+									char pathBuffer[50];
+									sprintf(pathBuffer, "screenshots/%s", filename);
+
+									screenshotTextures = realloc(screenshotTextures, sizeof(i32)*(++screenshotTextureCount));
+									screenshotTextures[currentScreenshot] = renderer_create_texture_from_file(renderer, pathBuffer);
+								}
+								else
+								{
+									currentScreenshot = 0;
+								}
+							}
+
+							i32 textureWidth = renderer_get_texture_width(renderer, screenshotTextures[currentScreenshot]);
+							i32 textureHeight = renderer_get_texture_height(renderer, screenshotTextures[currentScreenshot]);
+
+							canvas_resize(screenshotCanvas, textureWidth, textureHeight);
+						}
+					}
+
+#ifdef SCENE_0 
 					else if(sym == XK_a)
 					{
 						pointLightIntensity.r -= LIGHT_DELTA_MAGNITUDE;
@@ -387,7 +509,7 @@ main(int argc, char **argv)
 			}
 		}
 
-		renderer_draw(renderer, scene);
+		renderer_draw_scene(renderer, mainCanvas, scene);
 		
 		struct timespec currentTime;
 		clock_gettime(CLOCK_MONOTONIC, &currentTime);
@@ -400,9 +522,22 @@ main(int argc, char **argv)
 		
 		prevTime = currentTime;
 
-		canvas_text_set(canvas, fpsText, 50, 50, fpsBuffer);
+		canvas_text_set(mainCanvas, fpsText, 50, 50, fpsBuffer);
+		canvas_flip(mainCanvas);
 
-		canvas_flip(canvas);
+		if(canvas_is_show(screenshotCanvas))
+		{
+			if(currentScreenshot > -1)
+			{
+				renderer_draw_texture(renderer, screenshotCanvas, screenshotTextures[currentScreenshot]);
+
+				char screenshotNameBuffer[50];
+				sprintf(screenshotNameBuffer, "screenshot: %d", currentScreenshot);
+				
+				canvas_text_set(screenshotCanvas, screenshotText, 50, 50, screenshotNameBuffer);
+				canvas_flip(screenshotCanvas);
+			}
+		}
 
 		struct timespec delayTime = {0, 1000000*MS_DELAY};
 		nanosleep(&delayTime, NULL);

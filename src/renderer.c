@@ -29,7 +29,6 @@ typedef struct renderer_overlay
 
 struct raytracer_renderer
 {
-	raytracer_canvas *canvas;
 	i32 *sphereIds;
 	i32 sphereIdCount;
 	renderer_texture *textures;
@@ -43,10 +42,9 @@ struct raytracer_renderer
 };
 
 raytracer_renderer *
-renderer_init(raytracer_canvas *canvas)
+renderer_init()
 {
 	raytracer_renderer *r = malloc(sizeof(raytracer_renderer));
-	r->canvas = canvas;
 	r->sphereIds = NULL;
 	r->sphereIdCount = 0;
 	r->backgroundColor = 0x0;
@@ -79,10 +77,11 @@ renderer_push_sphere(raytracer_renderer *renderer, i32 sphereId)
 }
 
 void
-renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
+renderer_draw_scene(raytracer_renderer *renderer, raytracer_canvas *canvas, 
+		raytracer_scene *scene)
 {
-	i32 width = canvas_get_width(renderer->canvas);
-	i32 height = canvas_get_height(renderer->canvas);
+	i32 width = canvas_get_width(canvas);
+	i32 height = canvas_get_height(canvas);
 
 	if(renderer->activeOverlayId == RENDERER_OVERLAY_NULL)
 	{
@@ -115,17 +114,17 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 						scene_get_camera_position(scene, &cameraPosition);
 
 						v4 viewportPoint;
-						scene_canvas_to_world_coordinates(scene, renderer->canvas, x+partitionWidth/2, y+partitionHeight/2, &viewportPoint);
+						scene_canvas_to_world_coordinates(scene, canvas, x+partitionWidth/2, y+partitionHeight/2, &viewportPoint);
 
 						color32 result;
 
 						if(scene_trace_ray(scene, &viewportPoint, &result))
 						{
-							canvas_put_pixel(renderer->canvas, x+pX, y+pY, result);
+							canvas_put_pixel(canvas, x+pX, y+pY, result);
 						}
 						else
 						{
-							canvas_put_pixel(renderer->canvas, x+pX, y+pY, renderer->backgroundColor);
+							canvas_put_pixel(canvas, x+pX, y+pY, renderer->backgroundColor);
 						}
 					}
 				}
@@ -176,7 +175,7 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 				return;
 			}
 
-			u32 *canvasBuffer = canvas_get_buffer(renderer->canvas);
+			u32 *canvasBuffer = canvas_get_buffer(canvas);
 
 			struct
 			{
@@ -219,11 +218,28 @@ renderer_draw(raytracer_renderer *renderer, raytracer_scene *scene)
 				{
 					for(i32 partitionX = 0; partitionX < (i32)(pixelWidth); ++partitionX)
 					{
-						canvas_put_pixel(renderer->canvas, _x+partitionX, _y+partitionY, 
+						canvas_put_pixel(canvas, _x+partitionX, _y+partitionY, 
 								texture->pixels[y*texture->width + x]);
 					}
 				}
 			}
+		}
+	}
+}
+
+void
+renderer_draw_texture(raytracer_renderer *renderer, raytracer_canvas *canvas, 
+		i32 textureId)
+{
+	i32 canvasWidth = canvas_get_width(canvas);
+	i32 canvasHeight = canvas_get_height(canvas);
+	renderer_texture *texture = &renderer->textures[textureId];
+
+	for(i32 y = 0; y < canvasHeight; ++y)
+	{
+		for(i32 x = 0; x < canvasWidth; ++x)
+		{
+			canvas_put_pixel(canvas, x, y, (color32)texture->pixels[y*texture->width + x]);
 		}
 	}
 }
@@ -320,6 +336,18 @@ renderer_create_texture_from_file(raytracer_renderer *renderer, const char *path
 	renderer->textures[index].pixels = buffer;
 
 	return index;
+}
+
+i32
+renderer_get_texture_width(raytracer_renderer *renderer, i32 textureId)
+{
+	return renderer->textures[textureId].width;
+}
+
+i32
+renderer_get_texture_height(raytracer_renderer *renderer, i32 textureId)
+{
+	return renderer->textures[textureId].height;
 }
 
 void

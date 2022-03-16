@@ -16,10 +16,14 @@ typedef struct canvas_text
 
 struct raytracer_canvas
 {
+	raytracer_canvas *parent;
+	raytracer_canvas *next;
+	raytracer_canvas *children;
 	i32 width;
 	i32 height;
 	canvas_text *texts;
 	i32 textCount;
+	b32 isShow;
 	
 	struct
 	{
@@ -40,9 +44,12 @@ struct raytracer_canvas
 };
 
 raytracer_canvas *
-canvas_create(Display *display, i32 width, i32 height)
+canvas_create(Display *display, raytracer_canvas *parent, i32 width, i32 height)
 {
 	raytracer_canvas *canvas = malloc(sizeof(raytracer_canvas));
+	canvas->parent = parent;
+	canvas->children = NULL;
+
 	canvas->width = width;
 	canvas->height = height;
 	canvas->xlib.display = display;
@@ -73,6 +80,20 @@ canvas_create(Display *display, i32 width, i32 height)
 	XSetWMNormalHints(display, canvas->xlib.window, &windowHints);
 	
 	XStoreName(display, canvas->xlib.window, "Raytracer");
+	
+	if(parent)
+	{
+		canvas->isShow = B32_FALSE;
+		canvas->next = parent->children;
+		parent->children = canvas;
+	}
+	else
+	{
+		XMapWindow(display, canvas->xlib.window);
+
+		canvas->isShow = B32_TRUE;
+		canvas->next = NULL;
+	}
 
 	canvas->buffer.isDirty = B32_TRUE;
 	canvas->buffer.size = width*height*sizeof(u32);
@@ -84,6 +105,75 @@ canvas_create(Display *display, i32 width, i32 height)
 	canvas->textCount = 0;
 
 	return canvas;
+}
+
+void
+canvas_show(raytracer_canvas *canvas)
+{
+	if(canvas->parent)
+	{
+		if(!canvas->isShow)
+		{
+			XMapWindow(canvas->xlib.display, canvas->xlib.window);
+			canvas->isShow = B32_TRUE;
+		}
+		else
+		{
+			fprintf(stderr, "Cannot show canvas. It is already being showed!\n");
+		}
+	}
+	else
+	{
+		fprintf(stderr, "Cannot toggle main canvas!\n");
+	}
+}
+
+void
+canvas_hide(raytracer_canvas *canvas)
+{
+	if(canvas->parent)
+	{
+		if(canvas->isShow)
+		{
+			XUnmapWindow(canvas->xlib.display, canvas->xlib.window);
+			canvas->isShow = B32_FALSE;
+		}
+		else
+		{
+			fprintf(stderr, "Cannot hide canvas. It is already hidden!\n");
+		}
+	}
+	else
+	{
+		fprintf(stderr, "Cannot toggle main canvas!\n");
+	}
+}
+
+b32
+canvas_is_show(raytracer_canvas *canvas)
+{
+	return canvas->isShow;
+}
+
+void
+canvas_resize(raytracer_canvas *canvas, i32 width, i32 height)
+{
+	XSizeHints windowHints;
+	windowHints.flags = PMinSize | PMaxSize;
+	windowHints.min_width = width;
+	windowHints.max_width = width;
+	windowHints.min_height = height;
+	windowHints.max_height = height;
+
+	XSetWMNormalHints(canvas->xlib.display, canvas->xlib.window, &windowHints);
+	
+	canvas->buffer.size = width*height*sizeof(u32);
+	canvas->width = width;
+	canvas->height = height;
+	canvas->buffer._ = realloc(canvas->buffer.xImage, canvas->buffer.size);
+	
+	canvas->buffer.xImage = XCreateImage(canvas->xlib.display, CopyFromParent, canvas->xlib.depth, 
+			ZPixmap, 0, (char *)canvas->buffer._, width, height, 32, 0);
 }
 
 void
