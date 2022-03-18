@@ -16,9 +16,6 @@ extern raytracer_renderer *
 renderer_init();
 
 extern void
-renderer_push_sphere(raytracer_renderer *renderer, i32 sphereId);
-
-extern void
 renderer_draw_scene(raytracer_renderer *renderer, raytracer_canvas *canvas, 
 		raytracer_scene *scene);
 

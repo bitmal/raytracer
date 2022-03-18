@@ -59,165 +59,36 @@ main(int argc, char **argv)
 // SCENE_0
 #ifdef SCENE_0
 	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
+	real32 ambientIntensity = .17f;
+	light_set_value(scene, ambientLight, LIGHT_VALUE_INTENSITY, &ambientIntensity);
 
-	void **ambientLightValues = malloc(sizeof(void *));
-	ambientLightValues[0] = malloc(sizeof(real32));
-	*(real32*)ambientLightValues[0] = 0.17f;
-
-	light_set_values(scene, ambientLight, LIGHT_VALUE_INTENSITY, ambientLightValues);
-
-	free(ambientLightValues[0]);
-	free(ambientLightValues);
-
-#if 0	
+#if 0
 	i32 directionalLight = scene_create_light(scene, LIGHT_DIRECTIONAL);
-
-	void **directionalLightValues = malloc(sizeof(void *)*2);
-	directionalLightValues[0] = malloc(sizeof(v4));
-	*(v4 *)directionalLightValues[0] = vec4_init(0, -1, 0, 0);
-	directionalLightValues[1] = malloc(sizeof(real32));
-	*(real32 *)directionalLightValues[1] = 1.f;
-	
-	light_set_values(scene, directionalLight, 0x2 | 0x4, directionalLightValues);
-
-	free(directionalLightValues[0]);
-	free(directionalLightValues[1]);
-	free(directionalLightValues);
-#endif
-	
-	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
-
-	void **pointLightValues = malloc(sizeof(void *)*3);
-	pointLightValues[0] = malloc(sizeof(v4));
-	*(v4 *)pointLightValues[0] = vec4_init(0.f, 2, 2, 0);
-	pointLightValues[1] = malloc(sizeof(color32));
-	*(color32 *)pointLightValues[1] = 0x1FFFD2;
-	pointLightValues[2] = malloc(sizeof(real32));
-	*(real32 *)pointLightValues[2] = 20;
-	
-	light_set_values(scene, pointLight, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
-			LIGHT_VALUE_RANGE, pointLightValues);
-
-	free(pointLightValues[0]);
-	free(pointLightValues[1]);
-	free(pointLightValues[2]);
-	free(pointLightValues);
-	
-	i32 pointLight2 = scene_create_light(scene, LIGHT_POINT);
-
-	void **pointLightValues2 = malloc(sizeof(void *)*3);
-	pointLightValues2[0] = malloc(sizeof(v4));
-	*(v4 *)pointLightValues2[0] = vec4_init(-1.f, 0, 2.5f, 0);
-	pointLightValues2[1] = malloc(sizeof(color32));
-	*(color32 *)pointLightValues2[1] = 0xFF;
-	pointLightValues2[2] = malloc(sizeof(real32));
-	*(real32 *)pointLightValues2[2] = 20;
-	
-	light_set_values(scene, pointLight2, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
-			LIGHT_VALUE_RANGE, pointLightValues2);
-
-	free(pointLightValues2[0]);
-	free(pointLightValues2[1]);
-	free(pointLightValues2[2]);
-	free(pointLightValues2);
-	
-	i32 pointLight3 = scene_create_light(scene, LIGHT_POINT);
-	
-	void **pointLightValues3 = malloc(sizeof(void *)*3);
-	pointLightValues3[0] = malloc(sizeof(v4));
-	*(v4 *)pointLightValues3[0] = vec4_init(2.f, 0, 2.5f, 0);
-	pointLightValues3[1] = malloc(sizeof(color32));
-	*(color32 *)pointLightValues3[1] = 0xFF0000;
-	pointLightValues3[2] = malloc(sizeof(real32));
-	*(real32 *)pointLightValues3[2] = 20;
-	
-	light_set_values(scene, pointLight3, LIGHT_VALUE_POSITION | LIGHT_VALUE_COLOR | 
-			LIGHT_VALUE_RANGE, pointLightValues3);
-
-	free(pointLightValues3[0]);
-	free(pointLightValues3[1]);
-	free(pointLightValues3[2]);
-	free(pointLightValues3);
-
-	v4 spherePosition = {{0, -1, 3, 0.f}};
-	i32 sphereId = scene_create_sphere(scene, &spherePosition, 1.f, 0xFFFFFF, 100.f);
-	renderer_push_sphere(renderer, sphereId);
-	v4 spherePosition1 = {{-1.5, 0, 4, 0.f}};
-	i32 sphereId1 = scene_create_sphere(scene, &spherePosition1, 1.f, 0xFFFFFF, 100.f);
-	renderer_push_sphere(renderer, sphereId1);
-	v4 spherePosition2 = {{-1, -1, 3, 0.f}};
-	i32 sphereId2 = scene_create_sphere(scene, &spherePosition2, 1.f, 0xFFFFFF, 25.f);
-	renderer_push_sphere(renderer, sphereId2);
-	v4 spherePosition3 = {{0.75f, -1, 2.5f, 0.f}};
-	i32 sphereId3 = scene_create_sphere(scene, &spherePosition3, 0.75f, 0xFFFFFF, 25.f);
-	renderer_push_sphere(renderer, sphereId3);
-	v4 spherePosition4 = {{0.75f, -0.25f, 2.5f, 0.f}};
-	i32 sphereId4 = scene_create_sphere(scene, &spherePosition4, 0.0625f, 0xFFFFFF, 25.f);
-	renderer_push_sphere(renderer, sphereId4);
+	v4 directionalDir = {{-1.f, 0.f, 0.f, 0.f}};
+	light_set_value(scene, directionalLight, LIGHT_VALUE_DIRECTION, &directionalDir);
+	color32 directionalColor = 0x00FFFF;
+	light_set_value(scene, directionalLight, LIGHT_VALUE_COLOR, &directionalColor);
 #endif
 
-// SCENE_1
-#ifdef SCENE_1
-#define OBJECT_COUNT 10 
-	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
-
-	void **ambientLightValues = malloc(sizeof(void *));
-	ambientLightValues[0] = malloc(sizeof(real32));
-	*(real32*)ambientLightValues[0] = 0.21f;
-
-	light_set_values(scene, ambientLight, 0x4, ambientLightValues);
-
-	free(ambientLightValues[0]);
-	free(ambientLightValues);
-
+#if 0
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
+	v4 pointPosition = {{-1.f, 0.f, 1.5f, 0.f}};
+	light_set_value(scene, pointLight, LIGHT_VALUE_POSITION, &pointPosition);
+	color32 pointColor = 0x00FFFF;
+	light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &pointColor);
+#endif
 
-	void **pointLightValues = malloc(sizeof(void *)*2);
-	pointLightValues[0] = malloc(sizeof(v4));
-	*(v4 *)pointLightValues[0] = vec4_init(-1, 1, 2, 0);
-	pointLightValues[1] = malloc(sizeof(real32));
-	*(real32 *)pointLightValues[1] = 1.f;
-	
-	light_set_values(scene, pointLight, 0x1 | 0x4, pointLightValues);
-
-	free(pointLightValues[0]);
-	free(pointLightValues[1]);
-	free(pointLightValues);
-
-	i32 partitionWidth = WINDOW_WIDTH/(OBJECT_COUNT/2);
-	i32 partitionHeight = WINDOW_HEIGHT/(OBJECT_COUNT/2);
-
-	i32 objectCountHorizontal = OBJECT_COUNT/2;
-	i32 objectCountVertical = OBJECT_COUNT/2;
-
-	for(i32 objectY = 0; objectY < objectCountVertical; ++objectY)
-	{
-		i32 y = partitionHeight*objectY + partitionHeight/2;
-
-		for(i32 objectX = 0; objectX < objectCountHorizontal; ++objectX)
-		{
-			i32 x = partitionWidth*objectX + partitionWidth/2;
-
-			v4 spherePosition;
-			scene_canvas_to_world_coordinates(scene, mainCanvas, x, y, &spherePosition);
-
-			i32 sphereId = scene_create_sphere(scene, &spherePosition, (real32)(OBJECT_COUNT)/partitionWidth, 0xFF00FF);
-			renderer_push_sphere(renderer, sphereId);
-		}
-	}
+	i32 sphere = scene_create_object(scene, SCENE_OBJECT_SPHERE);
+	color32 sphereColor = 0xFF00FF;
+	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_COLOR, &sphereColor);
+	v4 spherePosition = {{0.f, 0.f, 2.5f, 0.f}};
+	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_POSITION, &spherePosition);
+	real32 sphereAlbedo = 100.f;
+	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_ALBEDO, &sphereAlbedo);
 #endif
 
 	i32 fpsText = canvas_text_create(mainCanvas);
 	v4 camPosition = {{0, 0, 0, 0}};
-	v4 pointLightIntensity = {};
-	{
-		color32 color;
-		light_get_value(scene, pointLight, LIGHT_VALUE_COLOR, &color);
-		pointLightIntensity.r = (real32)((color >> 16) & 0xFF)/(real32)0xFF;
-		pointLightIntensity.g = (real32)((color >> 8) & 0xFF)/(real32)0xFF;
-		pointLightIntensity.b = (real32)((color) & 0xFF)/(real32)0xFF;
-	}
-	
 	i32 screenshotText = canvas_text_create(screenshotCanvas);
 
 #define LIGHT_DELTA_MAGNITUDE 0.01f
@@ -410,51 +281,9 @@ main(int argc, char **argv)
 #ifdef SCENE_0 
 					else if(sym == XK_a)
 					{
-						pointLightIntensity.r -= LIGHT_DELTA_MAGNITUDE;
-						if(pointLightIntensity.r < 0.f)
-						{
-							pointLightIntensity.r = 0.f;
-						}
-						pointLightIntensity.g -= LIGHT_DELTA_MAGNITUDE;
-						if(pointLightIntensity.g < 0.f)
-						{
-							pointLightIntensity.g = 0.f;
-						}
-						pointLightIntensity.b -= LIGHT_DELTA_MAGNITUDE;
-						if(pointLightIntensity.b < 0.f)
-						{
-							pointLightIntensity.b = 0.f;
-						}
-
-						color32 c = ((u32)(0xFF*pointLightIntensity.r) << 16) |
-							((u32)(0xFF*pointLightIntensity.g) << 8) |
-							((u32)(0xFF*pointLightIntensity.b));
-						
-						light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &c);
 					}
 					else if(sym == XK_d)
 					{
-						pointLightIntensity.r += LIGHT_DELTA_MAGNITUDE;
-						if(pointLightIntensity.r > 1.f)
-						{
-							pointLightIntensity.r = 1.f;
-						}
-						pointLightIntensity.g += LIGHT_DELTA_MAGNITUDE;
-						if(pointLightIntensity.g > 1.f)
-						{
-							pointLightIntensity.g = 1.f;
-						}
-						pointLightIntensity.b += LIGHT_DELTA_MAGNITUDE;
-						if(pointLightIntensity.b > 1.f)
-						{
-							pointLightIntensity.b = 1.f;
-						}
-
-						color32 c = ((u32)(0xFF*pointLightIntensity.r) << 16) |
-							((u32)(0xFF*pointLightIntensity.g) << 8) |
-							((u32)(0xFF*pointLightIntensity.b));
-						
-						light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &c);
 					}
 					else if(sym == XK_s)
 					{

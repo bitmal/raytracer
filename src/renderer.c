@@ -29,8 +29,6 @@ typedef struct renderer_overlay
 
 struct raytracer_renderer
 {
-	i32 *sphereIds;
-	i32 sphereIdCount;
 	renderer_texture *textures;
 	i32 textureCount;
 	renderer_overlay *overlays;
@@ -45,8 +43,6 @@ raytracer_renderer *
 renderer_init()
 {
 	raytracer_renderer *r = malloc(sizeof(raytracer_renderer));
-	r->sphereIds = NULL;
-	r->sphereIdCount = 0;
 	r->backgroundColor = 0x0;
 	r->isSaveNextFrame = B32_FALSE;
 	r->textures = NULL;
@@ -56,24 +52,6 @@ renderer_init()
 	r->activeOverlayId = RENDERER_OVERLAY_NULL;
 
 	return r;
-}
-
-void
-renderer_push_sphere(raytracer_renderer *renderer, i32 sphereId)
-{
-	i32 index = renderer->sphereIdCount;
-
-	if(renderer->sphereIdCount > 0)
-	{
-		renderer->sphereIds = realloc(renderer->sphereIds, 
-				sizeof(i32)*(++renderer->sphereIdCount));
-	}
-	else
-	{
-		renderer->sphereIds = malloc(sizeof(i32)*(++renderer->sphereIdCount));
-	}
-
-	renderer->sphereIds[index] = sphereId;
 }
 
 void

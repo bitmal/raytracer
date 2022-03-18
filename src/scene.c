@@ -30,6 +30,18 @@ typedef struct scene_sphere
 	real32 albedo;
 } scene_sphere;
 
+typedef struct scene_object
+{
+	scene_object_t type;
+	v4 position;
+	color32 color;
+	real32 albedo;
+	real32 sphereRadius;
+	real32 boxWidth;
+	real32 boxHeight;
+	real32 boxDepth;
+} scene_object;
+
 typedef struct scene_light
 {
 	scene_light_t type;
@@ -45,8 +57,8 @@ struct raytracer_scene
 	scene_camera camera;
 	scene_light *lights;
 	i32 lightCount;
-	scene_sphere *spheres;
-	i32 sphereCount;
+	scene_object *objects;
+	i32 objectCount;
 	real32 pixelSize;
 };
 
@@ -66,6 +78,8 @@ scene_init()
 	scene->lights = NULL;
 	scene->lightCount = 0;
 	scene->pixelSize = 1.f;
+	scene->objects = NULL;
+	scene->objectCount = 0;
 
 	return scene;
 }
@@ -142,26 +156,203 @@ scene_world_to_canvas_y(raytracer_scene *scene, raytracer_canvas *canvas,
 }
 
 i32
-scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c, real32 albedo)
+scene_create_object(raytracer_scene *scene, scene_object_t type)
 {
-	i32 index = scene->sphereCount;
-
-	if(scene->sphereCount > 0)
+	i32 index = scene->objectCount;
+	
+	if(scene->objectCount > 0)
 	{
-		scene->spheres = realloc(scene->spheres, sizeof(scene_sphere)*(++scene->sphereCount));
+		scene->objects = realloc(scene->objects, sizeof(scene_object)*(++scene->objectCount));
 	}
 	else
 	{
-		scene->spheres = malloc(sizeof(scene_sphere)*(++scene->sphereCount));
+		scene->objects = malloc(sizeof(scene_object)*(++scene->objectCount));
 	}
 
-	scene_sphere *sphere = &scene->spheres[index];
-	sphere->position = *position;
-	sphere->radius = radius;
-	sphere->color = c;
-	sphere->albedo = albedo;
+	scene_object *object = &scene->objects[index];
+	object->type = type;
+	object->position = vec4_init(0, 0, 0, 0);
+	object->color = 0xFFFFFF;
+	object->albedo = 1.f;
+	object->sphereRadius = 1.f;
+	object->boxWidth = 1.f;
+	object->boxHeight = 1.f;
+	object->boxDepth = 1.f;
 
 	return index;
+}
+
+void
+scene_object_set_values(raytracer_scene *scene, i32 objectId, u32 valueFlags, 
+		const void **values)
+{
+	scene_object *obj = &scene->objects[objectId];
+
+	i32 valuesSet = 0;
+
+	for(i32 i = 0; i < 32; ++i)
+	{
+		u32 flag = valueFlags & (1 << i);
+
+		if(flag)
+		{
+			switch(flag)
+			{
+				case SCENE_OBJECT_VALUE_TYPE:
+				{
+					obj->type = *((scene_object_t **)values)[valuesSet++];
+				} break;
+				
+				case SCENE_OBJECT_VALUE_POSITION:
+				{
+					obj->position = *((v4 **)values)[valuesSet++];
+				} break;
+				
+				case SCENE_OBJECT_VALUE_COLOR:
+				{
+					obj->color = *((color32 **)values)[valuesSet++];
+				} break;
+				
+				case SCENE_OBJECT_VALUE_ALBEDO:
+				{
+					obj->color = *((real32 **)values)[valuesSet++];
+				} break;
+				
+				case SCENE_OBJECT_VALUE_SPHERE_RADIUS:
+				{
+					obj->sphereRadius = *((real32 **)values)[valuesSet++];
+				} break;
+				
+				case SCENE_OBJECT_VALUE_BOX_WIDTH:
+				{
+					obj->boxWidth = *((real32 **)values)[valuesSet++];
+				} break;
+				
+				case SCENE_OBJECT_VALUE_BOX_HEIGHT:
+				{
+					obj->boxHeight = *((real32 **)values)[valuesSet++];
+				} break;
+				
+				case SCENE_OBJECT_VALUE_BOX_DEPTH:
+				{
+					obj->boxDepth = *((real32 **)values)[valuesSet++];
+				} break;
+
+				default:
+				{
+					printf("Cannot set unknown scene object value!\n");
+				} break;
+			}
+		}
+	}
+}
+
+void
+scene_object_set_value(raytracer_scene *scene, i32 objectId, u32 valueFlag, 
+		const void *value)
+{
+	scene_object *obj = &scene->objects[objectId];
+
+	switch(valueFlag)
+	{
+		case SCENE_OBJECT_VALUE_TYPE:
+		{
+			obj->type = *(scene_object_t *)value;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_POSITION:
+		{
+			obj->position = *(v4 *)value;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_COLOR:
+		{
+			obj->color = *(color32 *)value;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_ALBEDO:
+		{
+			obj->albedo = *(real32 *)value;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_SPHERE_RADIUS:
+		{
+			obj->sphereRadius = *(real32 *)value;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_BOX_WIDTH:
+		{
+			obj->boxWidth = *(real32 *)value;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_BOX_HEIGHT:
+		{
+			obj->boxHeight = *(real32 *)value;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_BOX_DEPTH:
+		{
+			obj->boxDepth = *(real32 *)value;
+		} break;
+
+		default:
+		{
+			printf("Cannot set unknown scene object value!\n");
+		} break;
+	}
+}
+
+void
+scene_object_get_value(raytracer_scene *scene, i32 objectId, u32 valueFlag, 
+		void *outValue)
+{
+	switch(valueFlag)
+	{
+		case SCENE_OBJECT_VALUE_TYPE:
+		{
+			*(scene_object_t *)outValue = scene->objects[objectId].type;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_POSITION:
+		{
+			*(v4 *)outValue = scene->objects[objectId].position;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_COLOR:
+		{
+			*(color32 *)outValue = scene->objects[objectId].color;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_ALBEDO:
+		{
+			*(real32 *)outValue = scene->objects[objectId].albedo;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_SPHERE_RADIUS:
+		{
+			*(real32 *)outValue = scene->objects[objectId].sphereRadius;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_BOX_WIDTH:
+		{
+			*(real32 *)outValue = scene->objects[objectId].boxWidth;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_BOX_HEIGHT:
+		{
+			*(real32 *)outValue = scene->objects[objectId].boxHeight;
+		} break;
+		
+		case SCENE_OBJECT_VALUE_BOX_DEPTH:
+		{
+			*(real32 *)outValue = scene->objects[objectId].boxDepth;
+		} break;
+
+		default:
+		{
+			fprintf(stderr, "Cannot get unknown value from scene object!\n");
+		} break;
+	}
 }
 
 i32
@@ -190,7 +381,8 @@ scene_create_light(raytracer_scene *scene, scene_light_t type)
 }
 
 void
-light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **values)
+light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, 
+		const void **values)
 {
 	scene_light *light = &scene->lights[lightId];
 
@@ -244,7 +436,7 @@ light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **val
 }
 
 void
-light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
+light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, const void *value)
 {
 	switch(valueFlag)
 	{
@@ -286,38 +478,38 @@ light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
 }
 
 void
-light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
+light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *outValue)
 {
 	switch(valueFlag)
 	{
 		case LIGHT_VALUE_TYPE:
 		{
-			*(scene_light_t *)value = scene->lights[lightId].type;
+			*(scene_light_t *)outValue = scene->lights[lightId].type;
 		} break;
 		
 		case LIGHT_VALUE_POSITION:
 		{
-			*(v4 *)value = scene->lights[lightId].position;
+			*(v4 *)outValue = scene->lights[lightId].position;
 		} break;
 		
 		case LIGHT_VALUE_DIRECTION:
 		{
-			*(v4 *)value = scene->lights[lightId].direction;
+			*(v4 *)outValue = scene->lights[lightId].direction;
 		} break;
 		
 		case LIGHT_VALUE_COLOR:
 		{
-			*(color32 *)value = scene->lights[lightId].color;
+			*(color32 *)outValue = scene->lights[lightId].color;
 		} break;
 		
 		case LIGHT_VALUE_INTENSITY:
 		{
-			*(real32 *)value = scene->lights[lightId].intensity;
+			*(real32 *)outValue = scene->lights[lightId].intensity;
 		} break;
 		
 		case LIGHT_VALUE_RANGE:
 		{
-			*(real32 *)value = scene->lights[lightId].range;
+			*(real32 *)outValue = scene->lights[lightId].range;
 		} break;
 
 		default:
@@ -328,17 +520,15 @@ light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value)
 }
 
 static i32
-_scene_get_ray_sphere_intersection(raytracer_scene *scene, i32 sphereId, 
+_scene_get_ray_sphere_intersection(scene_object *object, 
 		const v4 *viewportPosition, const v4 *origin, real32 *out0, real32 *out1)
 {
-	scene_sphere *sphere = &scene->spheres[sphereId];
-
 	v4 CO;
-	vec4_subtract3(origin, &sphere->position, &CO);
+	vec4_subtract3(origin, &object->position, &CO);
 
 	real32 a = vec4_dot3(viewportPosition, viewportPosition);
 	real32 b = 2.f*vec4_dot3(&CO, viewportPosition);
-	real32 c = vec4_dot3(&CO, &CO) - sphere->radius*sphere->radius;
+	real32 c = vec4_dot3(&CO, &CO) - object->sphereRadius*object->sphereRadius;
 
 	real32 discriminant = b*b - 4*a*c;
 
@@ -354,50 +544,224 @@ _scene_get_ray_sphere_intersection(raytracer_scene *scene, i32 sphereId,
 	return 2;
 }
 
+static b32
+_scene_get_ray_box_intersection(scene_object *object, 
+		const v4 *viewportPosition, const v4 *origin, v4 *outNormal, real32 *outDistance)
+{
+	v4 rayDirection;
+	vec4_direction(origin, viewportPosition, &rayDirection);
+
+	real32 halfWidth = object->boxWidth/2.f;
+	real32 halfHeight = object->boxHeight/2.f;
+	real32 halfDepth = object->boxDepth/2.f;
+
+	real32 xBoundsMin = object->position.x - halfWidth;
+	real32 xBoundsMax = object->position.x + halfWidth;
+	real32 yBoundsMin = object->position.y - halfHeight;
+	real32 yBoundsMax = object->position.y + halfHeight;
+	real32 zBoundsMin = object->position.z - halfDepth;
+	real32 zBoundsMax = object->position.z + halfDepth;
+
+	v4 point;
+
+	real32 t0 = (xBoundsMin - origin->x)/rayDirection.x;
+	real32 t1 = (xBoundsMax + origin->x)/rayDirection.x;
+
+	if(t0 > t1)
+	{
+		real32 swap = t0;
+		t0 = t1;
+		t1 = swap;
+	}
+
+	vec4_scalar3(&rayDirection, t0, &point);
+	vec4_add3(origin, &point, &point);
+
+	if(point.x < object->position.x)
+	{
+		*outNormal = vec4_init(-1.f, 0.f, 0.f, 0.f);
+	}
+	else if(point.x > object->position.x)
+	{
+		*outNormal = vec4_init(1.f, 0.f, 0.f, 0.f);
+	}
+
+	real32 tY0 = (yBoundsMin - origin->y)/rayDirection.y;
+	real32 tY1 = (yBoundsMax + origin->y)/rayDirection.y;
+
+	if(tY0 > tY1)
+	{
+		real32 swap = tY0;
+		tY0 = tY1;
+		tY1 = swap;
+	}
+
+	if((t0 > tY1) || (tY0 > t1))
+	{
+		return B32_FALSE;
+	}
+
+	if(tY0 > t0)
+	{
+		t0 = tY0;
+	}
+	
+	if(tY1 < t1)
+	{
+		t1 = tY1;
+	}
+	
+	vec4_scalar3(&rayDirection, t0, &point);
+	vec4_add3(origin, &point, &point);
+
+	if(point.y < object->position.y)
+	{
+		*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
+	}
+	else if(point.x > object->position.x)
+	{
+		*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
+	}
+
+	real32 tZ0 = (zBoundsMin - origin->z)/rayDirection.z;
+	real32 tZ1 = (zBoundsMax + origin->z)/rayDirection.z;
+	
+	if(tZ0 > tZ1)
+	{
+		real32 swap = tZ0;
+		tZ0 = tZ1;
+		tZ1 = swap;
+	}
+
+	if((t0 > tZ1) || (tZ0 > t1))
+	{
+		return B32_FALSE;
+	}
+
+	if(tZ0 > t0)
+	{
+		t0 = tZ0;
+	}
+	
+	if(tZ1 < t1)
+	{
+		t1 = tZ1;
+	}
+	
+	vec4_scalar3(&rayDirection, t0, &point);
+	vec4_add3(origin, &point, &point);
+
+	if(point.z < object->position.z)
+	{
+		*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
+	}
+	else if(point.x > object->position.x)
+	{
+		*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
+	}
+
+	*outDistance = vec4_distance3(origin, &point);
+
+	return B32_TRUE;
+}
+
 b32
 scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *outColor)
 {
-	i32 closestSphereId = SPHERE_NULL;
-	real32 closestDistance;
+	v4 rayDirection;
+	vec4_direction(&scene->camera.position, viewportPosition, &rayDirection);
 
-	for(i32 i = 0; i < scene->sphereCount; ++i)
+	scene_object *obj = NULL;
+	real32 distance;
+	v4 intersectionPoint;
+	v4 surfaceNormal;
+
+	for(i32 i = 0; i < scene->objectCount; ++i)
 	{
-		real32 distances[2];
-		i32 intersections = _scene_get_ray_sphere_intersection(scene, i, viewportPosition, 
-				&scene->camera.position, &distances[0], &distances[1]);
+		scene_object *o = &scene->objects[i];
 
-		for(i32 j = 0; j < intersections; ++j)
+		switch(o->type)
 		{
-			if(closestSphereId != SPHERE_NULL)
+			case SCENE_OBJECT_SPHERE:
 			{
-				if(distances[j] < closestDistance)
+				real32 d[2];
+				i32 intersectionCount = _scene_get_ray_sphere_intersection(o, viewportPosition, 
+						&scene->camera.position, &d[0], &d[1]);
+
+				if(intersectionCount > 0)
 				{
-					closestSphereId = i;
-					closestDistance = distances[j];
+					for(i32 j = 0; j < intersectionCount; ++j)
+					{
+						if(obj)
+						{
+							if(d[j] < distance)
+							{
+								obj = o;
+								distance = d[j];
+
+								vec4_scalar(&rayDirection, distance, &intersectionPoint);
+								vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+			
+								vec4_direction(&obj->position, &intersectionPoint, &surfaceNormal);
+							}
+						}
+						else
+						{
+							obj = o;
+							distance = d[j];
+
+							vec4_scalar(&rayDirection, distance, &intersectionPoint);
+							vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+
+							vec4_direction(&obj->position, &intersectionPoint, &surfaceNormal);
+						}
+					}
 				}
-			}
-			else
+			} break;
+
+			case SCENE_OBJECT_BOX:
 			{
-				closestSphereId = i;
-				closestDistance = distances[j];
-			}
+				real32 d;
+				v4 n;
+
+				if(_scene_get_ray_box_intersection(o, viewportPosition, &scene->camera.position, 
+							&n, &d))
+				{
+					if(obj)
+					{
+						if(d < distance)
+						{
+							obj = o;
+							distance = d;
+					
+							vec4_scalar(&rayDirection, distance, &intersectionPoint);
+							vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+
+							surfaceNormal = n;
+						}
+					}
+					else
+					{
+						obj = o;
+						distance = d;
+					
+						vec4_scalar(&rayDirection, distance, &intersectionPoint);
+						vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+						
+						surfaceNormal = n;
+					}
+				}
+			} break;
+
+			default:
+			{
+				fprintf(stderr, "Unknown object type. Cannot trace ray!\n");
+			} break;
 		}
 	}
 
-	if(closestSphereId != SPHERE_NULL)
+	if(obj)
 	{
-		color32 c = scene->spheres[closestSphereId].color;
-
-		v4 direction;
-		vec4_direction(&scene->camera.position, viewportPosition, &direction);
-
-		v4 intersectPoint;
-		vec4_scalar(&direction, closestDistance, &intersectPoint);
-		vec4_add3(&scene->camera.position, &intersectPoint, &intersectPoint);
-
-		v4 normal;
-		vec4_direction(&scene->spheres[closestSphereId].position, &intersectPoint, &normal);
-
 		v4 colorIntensity = {};
 
 		for(i32 i = 0; i < scene->lightCount; ++i)
@@ -416,12 +780,11 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 				case LIGHT_DIRECTIONAL:
 				{
 					scene_light *light = &scene->lights[i];
-
-					real32 dot = vec4_dot3(&normal, &light->direction);
+					real32 dot = vec4_dot3(&surfaceNormal, &light->direction);
 
 					if(dot < 0.f)
 					{
-						real32 nLength = vec4_magnitude3(&normal);
+						real32 nLength = vec4_magnitude3(&surfaceNormal);
 						real32 lLength = vec4_magnitude3(&light->direction);
 						real32 coeff = -dot/(nLength*lLength);
 						
@@ -430,17 +793,17 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 
-					v4 specular = normal;
+					v4 specular = surfaceNormal;
 					vec4_scalar3(&specular, 2.f, &specular);
-					vec4_scalar3(&specular, vec4_dot3(&normal, &light->direction), &specular);
+					vec4_scalar3(&specular, vec4_dot3(&surfaceNormal, &light->direction), &specular);
 					vec4_subtract3(&specular, &light->direction, &specular);
 
-					real32 dotSpecular = vec4_dot3(&specular, &direction);
+					real32 dotSpecular = vec4_dot3(&specular, &rayDirection);
 
 					if(dotSpecular > 0.f)
 					{
-						real32 coeff = pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
-									scene->spheres[closestSphereId].albedo);
+						real32 coeff = pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&rayDirection)), 
+									obj->albedo);
 
 						v4 specularColor = {{(real32)((light->color >> 16) & 0xFF)/(real32)0xFF,
 							(real32)((light->color >> 8) & 0xFF)/(real32)0xFF,
@@ -460,44 +823,32 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					scene_light *light = &scene->lights[i];
 
 					v4 lightDirection;
-					vec4_direction(&light->position, &intersectPoint, &lightDirection);
+					vec4_direction(&light->position, &intersectionPoint, &lightDirection);
 
-					real32 lightDistance = vec4_distance3(&light->position, &intersectPoint);
-					real32 lightIntensityCoefficient = 1.f - (lightDistance/light->range);
-
-					if(lightIntensityCoefficient < 0)
-					{
-						lightIntensityCoefficient = 0;
-					}
-					else if(lightIntensityCoefficient > 1.f)
-					{
-						lightIntensityCoefficient = 1.f;
-					}
-					
-					real32 dot = vec4_dot3(&normal, &lightDirection);
+					real32 dot = vec4_dot3(&surfaceNormal, &lightDirection);
 
 					if(dot < 0.f)
 					{
-						real32 nLength = vec4_magnitude3(&normal);
+						real32 nLength = vec4_magnitude3(&surfaceNormal);
 						real32 lLength = vec4_magnitude3(&lightDirection);
-						real32 coeff = lightIntensityCoefficient*(-dot/(nLength*lLength));
-
+						real32 coeff = -dot/(nLength*lLength);
+						
 						colorIntensity.r += coeff*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
 						colorIntensity.g += coeff*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
 						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 
-					v4 specular = normal;
+					v4 specular = surfaceNormal;
 					vec4_scalar3(&specular, 2.f, &specular);
-					vec4_scalar3(&specular, vec4_dot3(&normal, &lightDirection), &specular);
+					vec4_scalar3(&specular, vec4_dot3(&surfaceNormal, &lightDirection), &specular);
 					vec4_subtract3(&specular, &lightDirection, &specular);
 
-					real32 dotSpecular = vec4_dot3(&specular, &direction);
+					real32 dotSpecular = vec4_dot3(&specular, &rayDirection);
 
 					if(dotSpecular > 0.f)
 					{
-						real32 coeff = lightIntensityCoefficient*pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&direction)), 
-									scene->spheres[closestSphereId].albedo);
+						real32 coeff = pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&rayDirection)), 
+									obj->albedo);
 
 						v4 specularColor = {{(real32)((light->color >> 16) & 0xFF)/(real32)0xFF,
 							(real32)((light->color >> 8) & 0xFF)/(real32)0xFF,
@@ -527,9 +878,9 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 			colorIntensity.b = 1.f;
 		}
 
-		*outColor = ((u32)(((c >> 16) & 0xFF)*colorIntensity.r) << 16) |
-			((u32)(((c >> 8) & 0xFF)*colorIntensity.g) << 8) |
-			((u32)(((c) & 0xFF)*colorIntensity.b));
+		*outColor = ((u32)(((obj->color >> 16) & 0xFF)*colorIntensity.r) << 16) |
+			((u32)(((obj->color >> 8) & 0xFF)*colorIntensity.g) << 8) |
+			((u32)(((obj->color) & 0xFF)*colorIntensity.b));
 
 		return B32_TRUE;
 	}

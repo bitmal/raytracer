@@ -14,14 +14,29 @@ typedef enum scene_light_type
 	LIGHT_POINT
 } scene_light_t;
 
-#define SPHERE_NULL (-1)
+typedef enum scene_object_type
+{
+	SCENE_OBJECT_SPHERE,
+	SCENE_OBJECT_BOX
+} scene_object_t;
 
-#define LIGHT_VALUE_TYPE 0x0
-#define LIGHT_VALUE_POSITION 0x1
-#define LIGHT_VALUE_DIRECTION 0x2
-#define LIGHT_VALUE_COLOR 0x4
-#define LIGHT_VALUE_INTENSITY 0x8
-#define LIGHT_VALUE_RANGE 0x10
+#define SCENE_OBJECT_NULL (-1)
+
+#define LIGHT_VALUE_TYPE (1 << 0)
+#define LIGHT_VALUE_POSITION (1 << 1)
+#define LIGHT_VALUE_DIRECTION (1 << 2)
+#define LIGHT_VALUE_COLOR (1 << 3)
+#define LIGHT_VALUE_INTENSITY (1 << 4)
+#define LIGHT_VALUE_RANGE (1 << 5)
+
+#define SCENE_OBJECT_VALUE_TYPE (1 << 0)
+#define SCENE_OBJECT_VALUE_POSITION (1 << 1)
+#define SCENE_OBJECT_VALUE_COLOR (1 << 2)
+#define SCENE_OBJECT_VALUE_ALBEDO (1 << 3)
+#define SCENE_OBJECT_VALUE_SPHERE_RADIUS (1 << 4)
+#define SCENE_OBJECT_VALUE_BOX_WIDTH (1 << 5)
+#define SCENE_OBJECT_VALUE_BOX_HEIGHT (1 << 6)
+#define SCENE_OBJECT_VALUE_BOX_DEPTH (1 << 7)
 
 extern raytracer_scene *
 scene_init();
@@ -55,19 +70,30 @@ scene_world_to_canvas_y(raytracer_scene *scene, raytracer_canvas *canvas,
 		const v4 *worldCoords);
 
 extern i32
-scene_create_sphere(raytracer_scene *scene, const v4 *position, real32 radius, color32 c, real32 albedo);
+scene_create_object(raytracer_scene *scene, scene_object_t type);
+
+extern void
+scene_object_set_values(raytracer_scene *scene, i32 objectId, u32 valueFlags, 
+		const void **values);
+
+extern void
+scene_object_set_value(raytracer_scene *scene, i32 objectId, u32 valueFlag, 
+		const void *value);
+
+extern void
+scene_object_get_value(raytracer_scene *scene, i32 objectId, u32 valueFlag, void *outValue);
 
 extern i32
 scene_create_light(raytracer_scene *scene, scene_light_t type);
 
 extern void
-light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, void **values);
+light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags, const void **values);
 
 extern void
-light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value);
+light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, const void *value);
 
 extern void
-light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *value);
+light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *outValue);
 
 extern b32
 scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *outColor);

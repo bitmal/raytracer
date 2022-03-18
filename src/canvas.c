@@ -101,6 +101,8 @@ canvas_create(Display *display, raytracer_canvas *parent, i32 width, i32 height)
 	canvas->buffer.xImage = XCreateImage(display, CopyFromParent, canvas->xlib.depth, 
 			ZPixmap, 0, (char *)canvas->buffer._, width, height, 32, 0);
 
+	XInitImage(canvas->buffer.xImage);
+
 	canvas->texts = NULL;
 	canvas->textCount = 0;
 
@@ -170,10 +172,14 @@ canvas_resize(raytracer_canvas *canvas, i32 width, i32 height)
 	canvas->buffer.size = width*height*sizeof(u32);
 	canvas->width = width;
 	canvas->height = height;
-	canvas->buffer._ = realloc(canvas->buffer.xImage, canvas->buffer.size);
+
+	XDestroyImage(canvas->buffer.xImage);
+	
+	canvas->buffer._ = malloc(canvas->buffer.size);
 	
 	canvas->buffer.xImage = XCreateImage(canvas->xlib.display, CopyFromParent, canvas->xlib.depth, 
 			ZPixmap, 0, (char *)canvas->buffer._, width, height, 32, 0);
+	XInitImage(canvas->buffer.xImage);
 }
 
 void
