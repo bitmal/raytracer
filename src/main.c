@@ -59,31 +59,35 @@ main(int argc, char **argv)
 // SCENE_0
 #ifdef SCENE_0
 	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
-	real32 ambientIntensity = .17f;
+	real32 ambientIntensity = .05f;
 	light_set_value(scene, ambientLight, LIGHT_VALUE_INTENSITY, &ambientIntensity);
 
-#if 0
+#if 1
 	i32 directionalLight = scene_create_light(scene, LIGHT_DIRECTIONAL);
-	v4 directionalDir = {{-1.f, 0.f, 0.f, 0.f}};
+	v4 directionalDir = {{0.f, 1.f, 0.f, 0.f}};
 	light_set_value(scene, directionalLight, LIGHT_VALUE_DIRECTION, &directionalDir);
-	color32 directionalColor = 0x00FFFF;
+	real32 directionalIntensity = 0.4f;
+	color32 directionalColor = ((u32)(0xFF*directionalIntensity) << 16) | 
+		((u32)(0xFF*directionalIntensity) << 8) | ((u32)(0x1F*directionalIntensity));
 	light_set_value(scene, directionalLight, LIGHT_VALUE_COLOR, &directionalColor);
 #endif
 
 #if 0
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
-	v4 pointPosition = {{-1.f, 0.f, 1.5f, 0.f}};
+	v4 pointPosition = {{-0.5f, 0.f, 1.5f, 0.f}};
 	light_set_value(scene, pointLight, LIGHT_VALUE_POSITION, &pointPosition);
-	color32 pointColor = 0x00FFFF;
+	color32 pointColor = 0xFFFFFF;
 	light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &pointColor);
+	real32 pointRange = 100.f;
+	light_set_value(scene, pointLight, LIGHT_VALUE_RANGE, &pointRange);
 #endif
 
 	i32 sphere = scene_create_object(scene, SCENE_OBJECT_SPHERE);
-	color32 sphereColor = 0xFF00FF;
+	color32 sphereColor = 0xFFFFFF;
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_COLOR, &sphereColor);
 	v4 spherePosition = {{0.f, 0.f, 2.5f, 0.f}};
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_POSITION, &spherePosition);
-	real32 sphereAlbedo = 100.f;
+	real32 sphereAlbedo = 32.f;
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_ALBEDO, &sphereAlbedo);
 #endif
 

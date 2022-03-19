@@ -409,6 +409,7 @@ light_set_values(raytracer_scene *scene, i32 lightId, u32 valueFlags,
 				case LIGHT_VALUE_DIRECTION:
 				{
 					light->direction = *((v4 **)values)[valuesSet++];
+					vec4_normal(&light->direction, &light->direction);
 				} break;
 				
 				case LIGHT_VALUE_COLOR:
@@ -453,6 +454,7 @@ light_set_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, const void *
 		case LIGHT_VALUE_DIRECTION:
 		{
 			scene->lights[lightId].direction = *(v4 *)value;
+			vec4_normal(&scene->lights[lightId].direction, &scene->lights[lightId].direction);
 		} break;
 		
 		case LIGHT_VALUE_COLOR:
@@ -762,6 +764,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 
 	if(obj)
 	{
+		v4 specularColor = {};
 		v4 colorIntensity = {};
 
 		for(i32 i = 0; i < scene->lightCount; ++i)
@@ -780,6 +783,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 				case LIGHT_DIRECTIONAL:
 				{
 					scene_light *light = &scene->lights[i];
+
 					real32 dot = vec4_dot3(&surfaceNormal, &light->direction);
 
 					if(dot < 0.f)
@@ -793,28 +797,24 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 
-					v4 specular = surfaceNormal;
-					vec4_scalar3(&specular, 2.f, &specular);
-					vec4_scalar3(&specular, vec4_dot3(&surfaceNormal, &light->direction), &specular);
-					vec4_subtract3(&specular, &light->direction, &specular);
+					v4 vertexToEye;
+					vec4_direction(&intersectionPoint, &scene->camera.position, &vertexToEye);
+					vec4_normal(&vertexToEye, &vertexToEye);
 
-					real32 dotSpecular = vec4_dot3(&specular, &rayDirection);
+					v4 lightReflect;
+					vec4_scalar3(&surfaceNormal, 2.f*vec4_dot3(&light->direction, &surfaceNormal), 
+							&lightReflect);
+					vec4_subtract3(&light->direction, &lightReflect, &lightReflect);
 
-					if(dotSpecular > 0.f)
+					real32 specularFactor = vec4_dot3(&vertexToEye, &lightReflect);
+
+					if(specularFactor > 0.f)
 					{
-						real32 coeff = pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&rayDirection)), 
-									obj->albedo);
+						specularFactor = pow(specularFactor, obj->albedo);
 
-						v4 specularColor = {{(real32)((light->color >> 16) & 0xFF)/(real32)0xFF,
-							(real32)((light->color >> 8) & 0xFF)/(real32)0xFF,
-							(real32)((light->color) & 0xFF)/(real32)0xFF,
-							0.f}};
-
-						real32 mag = vec4_magnitude3(&specularColor);
-
-						colorIntensity.r += coeff*mag;
-						colorIntensity.g += coeff*mag;
-						colorIntensity.b += coeff*mag;
+						specularColor.r += specularFactor*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
+						specularColor.g += specularFactor*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
+						specularColor.b += specularFactor*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 				} break;
 				
@@ -838,28 +838,24 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						colorIntensity.b += coeff*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 
-					v4 specular = surfaceNormal;
-					vec4_scalar3(&specular, 2.f, &specular);
-					vec4_scalar3(&specular, vec4_dot3(&surfaceNormal, &lightDirection), &specular);
-					vec4_subtract3(&specular, &lightDirection, &specular);
+					v4 vertexToEye;
+					vec4_direction(&intersectionPoint, &scene->camera.position, &vertexToEye);
+					vec4_normal(&vertexToEye, &vertexToEye);
 
-					real32 dotSpecular = vec4_dot3(&specular, &rayDirection);
+					v4 lightReflect;
+					vec4_scalar3(&surfaceNormal, 2.f*vec4_dot3(&lightDirection, &surfaceNormal), 
+							&lightReflect);
+					vec4_subtract3(&lightDirection, &lightReflect, &lightReflect);
 
-					if(dotSpecular > 0.f)
+					real32 specularFactor = vec4_dot3(&vertexToEye, &lightReflect);
+
+					if(specularFactor > 0.f)
 					{
-						real32 coeff = pow(dotSpecular/(vec4_magnitude3(&specular)*vec4_magnitude3(&rayDirection)), 
-									obj->albedo);
+						specularFactor = pow(specularFactor, obj->albedo);
 
-						v4 specularColor = {{(real32)((light->color >> 16) & 0xFF)/(real32)0xFF,
-							(real32)((light->color >> 8) & 0xFF)/(real32)0xFF,
-							(real32)((light->color) & 0xFF)/(real32)0xFF,
-							0.f}};
-
-						real32 mag = vec4_magnitude3(&specularColor);
-
-						colorIntensity.r += coeff*mag;
-						colorIntensity.g += coeff*mag;
-						colorIntensity.b += coeff*mag;
+						specularColor.r += specularFactor*((real32)((light->color >> 16) & 0xFF)/(real32)0xFF);
+						specularColor.g += specularFactor*((real32)((light->color >> 8) & 0xFF)/(real32)0xFF);
+						specularColor.b += specularFactor*((real32)((light->color) & 0xFF)/(real32)0xFF);
 					}
 				} break;
 			}
@@ -878,9 +874,40 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 			colorIntensity.b = 1.f;
 		}
 
-		*outColor = ((u32)(((obj->color >> 16) & 0xFF)*colorIntensity.r) << 16) |
-			((u32)(((obj->color >> 8) & 0xFF)*colorIntensity.g) << 8) |
-			((u32)(((obj->color) & 0xFF)*colorIntensity.b));
+		if(specularColor.r > 1.f)
+		{
+			specularColor.r = 1.f;
+		}
+		if(specularColor.g > 1.f)
+		{
+			specularColor.g = 1.f;
+		}
+		if(specularColor.b > 1.f)
+		{
+			specularColor.b = 1.f;
+		}
+
+		v4 c = {{((real32)((obj->color >> 16) & 0xFF)/(real32)0xFF)*colorIntensity.r,
+			((real32)((obj->color >> 8) & 0xFF)/(real32)0xFF)*colorIntensity.g,
+			((real32)((obj->color) & 0xFF)/(real32)0xFF)*colorIntensity.b,
+			0.f}};
+
+		vec4_add3(&c, &specularColor, &c);
+
+		if(c.r > 1.f)
+		{
+			c.r = 1.f;
+		}
+		if(c.g > 1.f)
+		{
+			c.g = 1.f;
+		}
+		if(c.b > 1.f)
+		{
+			c.b = 1.f;
+		}
+
+		*outColor = ((u32)(c.r*0xFF) << 16) | ((u32)(c.g*0xFF) << 8) | (u32)(c.b*0xFF);
 
 		return B32_TRUE;
 	}
