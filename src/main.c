@@ -59,24 +59,26 @@ main(int argc, char **argv)
 // SCENE_0
 #ifdef SCENE_0
 	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
-	real32 ambientIntensity = .05f;
+	real32 ambientIntensity = 0.1f;
 	light_set_value(scene, ambientLight, LIGHT_VALUE_INTENSITY, &ambientIntensity);
 
-#if 1
+#if 0
 	i32 directionalLight = scene_create_light(scene, LIGHT_DIRECTIONAL);
-	v4 directionalDir = {{0.f, 1.f, 0.f, 0.f}};
+	v4 directionalDir = {{0.f, 0.f, 1.f, 0.f}};
 	light_set_value(scene, directionalLight, LIGHT_VALUE_DIRECTION, &directionalDir);
-	real32 directionalIntensity = 0.4f;
+	real32 directionalIntensity = 0.5f;
 	color32 directionalColor = ((u32)(0xFF*directionalIntensity) << 16) | 
-		((u32)(0xFF*directionalIntensity) << 8) | ((u32)(0x1F*directionalIntensity));
+		((u32)(0xFF*directionalIntensity) << 8) | ((u32)(0xFF*directionalIntensity));
 	light_set_value(scene, directionalLight, LIGHT_VALUE_COLOR, &directionalColor);
 #endif
 
-#if 0
+#if 1
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
-	v4 pointPosition = {{-0.5f, 0.f, 1.5f, 0.f}};
+	v4 pointPosition = {{-1.f, 0.f, 1.5f, 0.f}};
 	light_set_value(scene, pointLight, LIGHT_VALUE_POSITION, &pointPosition);
-	color32 pointColor = 0xFFFFFF;
+	real32 pointIntensity = 1.f;
+	color32 pointColor = ((u32)(0xFF*pointIntensity) << 16) | 
+		((u32)(0x0*pointIntensity) << 8) | ((u32)(0xFF*pointIntensity));
 	light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &pointColor);
 	real32 pointRange = 100.f;
 	light_set_value(scene, pointLight, LIGHT_VALUE_RANGE, &pointRange);
@@ -92,8 +94,9 @@ main(int argc, char **argv)
 #endif
 
 	i32 fpsText = canvas_text_create(mainCanvas);
-	v4 camPosition = {{0, 0, 0, 0}};
+	i32 camText = canvas_text_create(mainCanvas);
 	i32 screenshotText = canvas_text_create(screenshotCanvas);
+	v4 camPosition = {{0, 0, 0, 0}};
 
 #define LIGHT_DELTA_MAGNITUDE 0.01f
 #define CAM_MOVEMENT 0.1f
@@ -356,6 +359,19 @@ main(int argc, char **argv)
 		prevTime = currentTime;
 
 		canvas_text_set(mainCanvas, fpsText, 50, 50, fpsBuffer);
+
+		i32 canvasWidth = canvas_get_width(mainCanvas);
+		//i32 canvasHeight = canvas_get_height(mainCanvas);
+
+		char camTextBuffer[100];
+		sprintf(camTextBuffer, "cam position: (%.1f, %.1f, %.1f)", camPosition.x, 
+				camPosition.y, camPosition.z);
+
+		real32 splitWidth = canvasWidth/4.f;
+		//real32 splitHeight = canvasHeight/4.f;
+
+		canvas_text_set(mainCanvas, camText, (splitWidth*3.f)-1, 50, camTextBuffer);
+
 		canvas_flip(mainCanvas);
 
 		if(canvas_is_show(screenshotCanvas))
@@ -364,7 +380,7 @@ main(int argc, char **argv)
 			{
 				renderer_draw_texture(renderer, screenshotCanvas, screenshotTextures[currentScreenshot]);
 
-				char screenshotNameBuffer[50];
+				char screenshotNameBuffer[100];
 				sprintf(screenshotNameBuffer, "screenshot: %d", currentScreenshot);
 				
 				canvas_text_set(screenshotCanvas, screenshotText, 50, 50, screenshotNameBuffer);
