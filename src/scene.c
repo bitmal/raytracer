@@ -20,6 +20,7 @@ typedef struct scene_camera
 {
 	camera_viewport viewport;
 	v4 position;
+	v4 direction;
 } scene_camera;
 
 typedef struct scene_sphere
@@ -74,6 +75,7 @@ scene_init()
 	scene->camera.viewport.back = scene->camera.viewport.front + 100.f;
 	scene->camera.viewport.fov = 90.f;
 	scene->camera.position = vec4_init(0.f, 0.f, 0.f, 0.f);
+	scene->camera.direction = vec4_init(0.f, 0.f, 1.f, 0.f);
 
 	scene->lights = NULL;
 	scene->lightCount = 0;
@@ -128,17 +130,23 @@ scene_canvas_to_world_coordinates(raytracer_scene *scene, raytracer_canvas *canv
 	i32 width = canvas_get_width(canvas);
 	i32 height = canvas_get_height(canvas);
 
-	out->x = (real32)x*((scene->camera.viewport.right - scene->camera.viewport.left)/
-			(real32)width) + (scene->camera.viewport.left) + scene->camera.position.x;
-	out->y = (real32)-y*((scene->camera.viewport.top - scene->camera.viewport.bottom)/
-			(real32)height) - (scene->camera.viewport.bottom) + scene->camera.position.y;
-	out->z = scene->camera.viewport.front + scene->camera.position.z;
+	v4 position = {{
+		(real32)x*((scene->camera.viewport.right - scene->camera.viewport.left)/
+			(real32)width) + (scene->camera.viewport.left),
+		(real32)-y*((scene->camera.viewport.top - scene->camera.viewport.bottom)/
+			(real32)height) - (scene->camera.viewport.bottom),
+		scene->camera.viewport.front,
+		0.f
+	}};
+
+	*out = position;
 }
 
 i32
 scene_world_to_canvas_x(raytracer_scene *scene, raytracer_canvas *canvas,
 		const v4 *worldCoords)
 {
+	// TODO: fix
 	i32 width = canvas_get_width(canvas);
 
 	return (i32)((worldCoords->x - scene->camera.viewport.left)*((real32)width/
@@ -149,6 +157,7 @@ i32
 scene_world_to_canvas_y(raytracer_scene *scene, raytracer_canvas *canvas,
 		const v4 *worldCoords)
 {
+	// TODO: fix
 	i32 height = canvas_get_height(canvas);
 
 	return (i32)(-(worldCoords->y + scene->camera.viewport.bottom)*((real32)height/
@@ -522,11 +531,14 @@ light_get_value(raytracer_scene *scene, i32 lightId, u32 valueFlag, void *outVal
 }
 
 static i32
-_scene_get_ray_sphere_intersection(scene_object *object, 
+_scene_get_ray_sphere_intersection(raytracer_scene *scene, scene_object *object, 
 		const v4 *viewportPosition, const v4 *origin, real32 *out0, real32 *out1)
 {
+	v4 objPosition;
+	vec4_add3(&object->position, &scene->camera.position, &objPosition);
+
 	v4 CO;
-	vec4_subtract3(origin, &object->position, &CO);
+	vec4_subtract3(origin, &objPosition, &CO);
 
 	real32 a = vec4_dot3(viewportPosition, viewportPosition);
 	real32 b = 2.f*vec4_dot3(&CO, viewportPosition);
@@ -606,25 +618,37 @@ _scene_get_ray_box_intersection(scene_object *object,
 	if(tY0 > t0)
 	{
 		t0 = tY0;
+
+		vec4_scalar3(&rayDirection, t0, &point);
+		vec4_add3(origin, &point, &point);
+
+		if(point.y < object->position.y)
+		{
+			*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
+		}
+		else if(point.y > object->position.y)
+		{
+			*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
+		}
 	}
 	
 	if(tY1 < t1)
 	{
 		t1 = tY1;
+		
+		vec4_scalar3(&rayDirection, t1, &point);
+		vec4_add3(origin, &point, &point);
+
+		if(point.y < object->position.y)
+		{
+			*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
+		}
+		else if(point.y > object->position.y)
+		{
+			*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
+		}
 	}
 	
-	vec4_scalar3(&rayDirection, t0, &point);
-	vec4_add3(origin, &point, &point);
-
-	if(point.y < object->position.y)
-	{
-		*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
-	}
-	else if(point.x > object->position.x)
-	{
-		*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
-	}
-
 	real32 tZ0 = (zBoundsMin - origin->z)/rayDirection.z;
 	real32 tZ1 = (zBoundsMax + origin->z)/rayDirection.z;
 	
@@ -643,23 +667,35 @@ _scene_get_ray_box_intersection(scene_object *object,
 	if(tZ0 > t0)
 	{
 		t0 = tZ0;
+
+		vec4_scalar3(&rayDirection, t0, &point);
+		vec4_add3(origin, &point, &point);
+	
+		if(point.z < object->position.z)
+		{
+			*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
+		}
+		else if(point.z > object->position.z)
+		{
+			*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
+		}
 	}
 	
 	if(tZ1 < t1)
 	{
 		t1 = tZ1;
-	}
-	
-	vec4_scalar3(&rayDirection, t0, &point);
-	vec4_add3(origin, &point, &point);
 
-	if(point.z < object->position.z)
-	{
-		*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
-	}
-	else if(point.x > object->position.x)
-	{
-		*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
+		vec4_scalar3(&rayDirection, t1, &point);
+		vec4_add3(origin, &point, &point);
+	
+		if(point.z < object->position.z)
+		{
+			*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
+		}
+		else if(point.z > object->position.z)
+		{
+			*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
+		}
 	}
 
 	*outDistance = vec4_distance3(origin, &point);
@@ -670,13 +706,15 @@ _scene_get_ray_box_intersection(scene_object *object,
 b32
 scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *outColor)
 {
+	v4 origin = vec4_init(0.f, 0.f, 0.f, 0.f);
 	v4 rayDirection;
-	vec4_direction(&scene->camera.position, viewportPosition, &rayDirection);
+	vec4_direction(&origin, viewportPosition, &rayDirection);
 
 	scene_object *obj = NULL;
 	real32 distance;
 	v4 intersectionPoint;
 	v4 surfaceNormal;
+	v4 objPosition;
 
 	for(i32 i = 0; i < scene->objectCount; ++i)
 	{
@@ -687,8 +725,8 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 			case SCENE_OBJECT_SPHERE:
 			{
 				real32 d[2];
-				i32 intersectionCount = _scene_get_ray_sphere_intersection(o, viewportPosition, 
-						&scene->camera.position, &d[0], &d[1]);
+				i32 intersectionCount = _scene_get_ray_sphere_intersection(scene, o, viewportPosition, 
+						&origin, &d[0], &d[1]);
 
 				if(intersectionCount > 0)
 				{
@@ -702,9 +740,10 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 								distance = d[j];
 
 								vec4_scalar(&rayDirection, distance, &intersectionPoint);
-								vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+								vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
 			
-								vec4_direction(&obj->position, &intersectionPoint, &surfaceNormal);
+								vec4_add3(&obj->position, &scene->camera.position, &objPosition);
+								vec4_direction(&objPosition, &intersectionPoint, &surfaceNormal);
 							}
 						}
 						else
@@ -713,9 +752,10 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 							distance = d[j];
 
 							vec4_scalar(&rayDirection, distance, &intersectionPoint);
-							vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+							vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
 
-							vec4_direction(&obj->position, &intersectionPoint, &surfaceNormal);
+							vec4_add3(&obj->position, &scene->camera.position, &objPosition);
+							vec4_direction(&objPosition, &intersectionPoint, &surfaceNormal);
 						}
 					}
 				}
@@ -726,7 +766,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 				real32 d;
 				v4 n;
 
-				if(_scene_get_ray_box_intersection(o, viewportPosition, &scene->camera.position, 
+				if(_scene_get_ray_box_intersection(o, viewportPosition, &origin, 
 							&n, &d))
 				{
 					if(obj)
@@ -737,7 +777,9 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 							distance = d;
 					
 							vec4_scalar(&rayDirection, distance, &intersectionPoint);
-							vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+							vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
+
+							vec4_add3(&obj->position, &origin, &objPosition);
 
 							surfaceNormal = n;
 						}
@@ -748,7 +790,9 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						distance = d;
 					
 						vec4_scalar(&rayDirection, distance, &intersectionPoint);
-						vec4_add3(&scene->camera.position, &intersectionPoint, &intersectionPoint);
+						vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
+
+						vec4_add3(&obj->position, &origin, &objPosition);
 						
 						surfaceNormal = n;
 					}
@@ -798,7 +842,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					}
 
 					v4 vertexToEye;
-					vec4_direction(&intersectionPoint, &scene->camera.position, &vertexToEye);
+					vec4_direction(&intersectionPoint, &origin, &vertexToEye);
 					vec4_normal(&vertexToEye, &vertexToEye);
 
 					v4 lightReflect;
@@ -841,7 +885,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					}
 
 					v4 vertexToEye;
-					vec4_direction(&intersectionPoint, &scene->camera.position, &vertexToEye);
+					vec4_direction(&intersectionPoint, &origin, &vertexToEye);
 					vec4_normal(&vertexToEye, &vertexToEye);
 
 					v4 lightReflect;

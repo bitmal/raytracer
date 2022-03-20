@@ -9,6 +9,7 @@
 
 #include "stdinc.h"
 #include "rt_math.h"
+#include "work.h"
 #include "canvas.h"
 #include "scene.h"
 #include "renderer.h"
@@ -46,7 +47,7 @@ main(int argc, char **argv)
 	raytracer_canvas *mainCanvas = canvas_create(display, NULL, WINDOW_WIDTH, WINDOW_HEIGHT);
 	raytracer_canvas *screenshotCanvas = canvas_create(display, mainCanvas, WINDOW_WIDTH, WINDOW_HEIGHT);
 	raytracer_scene *scene = scene_init();
-	raytracer_renderer *renderer = renderer_init(mainCanvas);
+	raytracer_renderer *renderer = renderer_init();
 
 	i32 *screenshotTextures = NULL;
 	i32 screenshotTextureCount = 0;
@@ -62,17 +63,17 @@ main(int argc, char **argv)
 	real32 ambientIntensity = 0.1f;
 	light_set_value(scene, ambientLight, LIGHT_VALUE_INTENSITY, &ambientIntensity);
 
-#if 0
+#if 1
 	i32 directionalLight = scene_create_light(scene, LIGHT_DIRECTIONAL);
-	v4 directionalDir = {{0.f, 0.f, 1.f, 0.f}};
+	v4 directionalDir = {{1.f, 0.f, 0.f, 0.f}};
 	light_set_value(scene, directionalLight, LIGHT_VALUE_DIRECTION, &directionalDir);
-	real32 directionalIntensity = 0.5f;
+	real32 directionalIntensity = 1.f;
 	color32 directionalColor = ((u32)(0xFF*directionalIntensity) << 16) | 
 		((u32)(0xFF*directionalIntensity) << 8) | ((u32)(0xFF*directionalIntensity));
 	light_set_value(scene, directionalLight, LIGHT_VALUE_COLOR, &directionalColor);
 #endif
 
-#if 1
+#if 0
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
 	v4 pointPosition = {{-1.f, 0.f, 1.5f, 0.f}};
 	light_set_value(scene, pointLight, LIGHT_VALUE_POSITION, &pointPosition);
@@ -87,8 +88,6 @@ main(int argc, char **argv)
 	i32 sphere = scene_create_object(scene, SCENE_OBJECT_SPHERE);
 	color32 sphereColor = 0xFFFFFF;
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_COLOR, &sphereColor);
-	v4 spherePosition = {{0.f, 0.f, 2.5f, 0.f}};
-	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_POSITION, &spherePosition);
 	real32 sphereAlbedo = 32.f;
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_ALBEDO, &sphereAlbedo);
 #endif
@@ -96,9 +95,9 @@ main(int argc, char **argv)
 	i32 fpsText = canvas_text_create(mainCanvas);
 	i32 camText = canvas_text_create(mainCanvas);
 	i32 screenshotText = canvas_text_create(screenshotCanvas);
-	v4 camPosition = {{0, 0, 0, 0}};
+	v4 camPosition = {{0, 0, 2.5f, 0}};
+	scene_set_camera_position(scene, &camPosition);
 
-#define LIGHT_DELTA_MAGNITUDE 0.01f
 #define CAM_MOVEMENT 0.1f
 
 	XMapWindow(display, canvas_get_window(mainCanvas));
@@ -396,6 +395,7 @@ main(int argc, char **argv)
 }
 
 #include "rt_math.c"
+#include "work.c"
 #include "canvas.c"
 #include "scene.c"
 #include "renderer.c"
