@@ -60,10 +60,10 @@ main(int argc, char **argv)
 // SCENE_0
 #ifdef SCENE_0
 	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
-	real32 ambientIntensity = 0.1f;
+	real32 ambientIntensity = 0.5f;
 	light_set_value(scene, ambientLight, LIGHT_VALUE_INTENSITY, &ambientIntensity);
 
-#if 1
+#if 0
 	i32 directionalLight = scene_create_light(scene, LIGHT_DIRECTIONAL);
 	v4 directionalDir = {{1.f, 0.f, 0.f, 0.f}};
 	light_set_value(scene, directionalLight, LIGHT_VALUE_DIRECTION, &directionalDir);
@@ -73,15 +73,15 @@ main(int argc, char **argv)
 	light_set_value(scene, directionalLight, LIGHT_VALUE_COLOR, &directionalColor);
 #endif
 
-#if 0
+#if 1
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
-	v4 pointPosition = {{-1.f, 0.f, 1.5f, 0.f}};
+	v4 pointPosition = {{-2.f, 0.f, 2.5f, 0.f}};
 	light_set_value(scene, pointLight, LIGHT_VALUE_POSITION, &pointPosition);
 	real32 pointIntensity = 1.f;
 	color32 pointColor = ((u32)(0xFF*pointIntensity) << 16) | 
 		((u32)(0x0*pointIntensity) << 8) | ((u32)(0xFF*pointIntensity));
 	light_set_value(scene, pointLight, LIGHT_VALUE_COLOR, &pointColor);
-	real32 pointRange = 100.f;
+	real32 pointRange = 1000.f;
 	light_set_value(scene, pointLight, LIGHT_VALUE_RANGE, &pointRange);
 #endif
 
@@ -90,6 +90,16 @@ main(int argc, char **argv)
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_COLOR, &sphereColor);
 	real32 sphereAlbedo = 32.f;
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_ALBEDO, &sphereAlbedo);
+	v4 spherePosition = {{1.f, 0.f, 2.5f, 0.f}};
+	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_POSITION, &spherePosition);
+
+	i32 sphere1 = scene_create_object(scene, SCENE_OBJECT_SPHERE);
+	color32 sphere1Color = 0xFF0000;
+	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_COLOR, &sphere1Color);
+	real32 sphere1Albedo = 32.f;
+	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_ALBEDO, &sphere1Albedo);
+	v4 sphere1Position = {{-1.f, 0.f, 2.5f, 0.f}};
+	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_POSITION, &sphere1Position);
 #endif
 
 	i32 fpsText = canvas_text_create(mainCanvas);

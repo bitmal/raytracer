@@ -828,6 +828,50 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 				{
 					scene_light *light = &scene->lights[i];
 
+					b32 isOccluded = B32_FALSE;
+					for(i32 j = 0; j < scene->objectCount; ++j)
+					{
+						scene_object *o = &scene->objects[j];
+
+						if(o == obj)
+						{
+							continue;
+						}
+
+						v4 invLightDirection;
+						vec4_scalar3(&light->direction, -1.f, &invLightDirection);
+
+						v4 lightPosition;
+						vec4_add3(&intersectionPoint, &invLightDirection, &lightPosition);
+
+						real32 d[2];
+						i32 intersectionCount = _scene_get_ray_sphere_intersection(scene, o, &lightPosition, 
+								&intersectionPoint, &d[0], &d[1]);
+
+						if(intersectionCount > 0)
+						{
+							for(i32 k = 0; k < intersectionCount; ++k)
+							{
+								if(d[k] >= 0)
+								{
+									isOccluded = B32_TRUE;
+
+									break;
+								}
+							}
+
+							if(isOccluded)
+							{
+								break;
+							}
+						}
+					}
+
+					if(isOccluded)
+					{
+						continue;
+					}
+
 					real32 dot = vec4_dot3(&surfaceNormal, &light->direction);
 
 					if(dot < 0.f)
@@ -866,9 +910,53 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 				{
 					scene_light *light = &scene->lights[i];
 
+					v4 lightPosition;
+					vec4_add3(&light->position, &scene->camera.position, &lightPosition);
+					
+					b32 isOccluded = B32_FALSE;
+					for(i32 j = 0; j < scene->objectCount; ++j)
+					{
+						scene_object *o = &scene->objects[j];
+
+						if(o == obj)
+						{
+							continue;
+						}
+
+						v4 oPos;
+						vec4_add3(&o->position, &scene->camera.position, &oPos);
+
+						real32 d[2];
+						i32 intersectionCount = _scene_get_ray_sphere_intersection(scene, o, &lightPosition, 
+								&intersectionPoint, &d[0], &d[1]);
+
+						if(intersectionCount > 0)
+						{
+							for(i32 k = 0; k < intersectionCount; ++k)
+							{
+								if(d[k] >= 0)
+								{
+									isOccluded = B32_TRUE;
+
+									break;
+								}
+							}
+
+							if(isOccluded)
+							{
+								break;
+							}
+						}
+					}
+
+					if(isOccluded)
+					{
+						continue;
+					}
+
 					v4 lightDirection;
-					vec4_direction(&light->position, &intersectionPoint, &lightDirection);
-					real32 lightDistance = vec4_distance3(&light->position, &intersectionPoint);
+					vec4_direction(&lightPosition, &intersectionPoint, &lightDirection);
+					real32 lightDistance = vec4_distance3(&lightPosition, &intersectionPoint);
 					real32 distanceCoeff = lightDistance <= light->range ? (1.f - lightDistance/light->range) : 0.f;
 
 					real32 dot = vec4_dot3(&surfaceNormal, &lightDirection);
