@@ -93,7 +93,7 @@ main(int argc, char **argv)
 	v4 spherePosition = {{1.f, 0.f, 2.5f, 0.f}};
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_POSITION, &spherePosition);
 
-	i32 sphere1 = scene_create_object(scene, SCENE_OBJECT_SPHERE);
+	i32 sphere1 = scene_create_object(scene, SCENE_OBJECT_BOX);
 	color32 sphere1Color = 0xFF0000;
 	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_COLOR, &sphere1Color);
 	real32 sphere1Albedo = 32.f;

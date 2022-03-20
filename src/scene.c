@@ -559,9 +559,12 @@ _scene_get_ray_sphere_intersection(raytracer_scene *scene, scene_object *object,
 }
 
 static b32
-_scene_get_ray_box_intersection(scene_object *object, 
+_scene_get_ray_box_intersection(raytracer_scene *scene, scene_object *object, 
 		const v4 *viewportPosition, const v4 *origin, v4 *outNormal, real32 *outDistance)
 {
+	v4 objectPosition;
+	vec4_subtract3(&object->position, &scene->camera.position, &objectPosition);
+
 	v4 rayDirection;
 	vec4_direction(origin, viewportPosition, &rayDirection);
 
@@ -569,14 +572,15 @@ _scene_get_ray_box_intersection(scene_object *object,
 	real32 halfHeight = object->boxHeight/2.f;
 	real32 halfDepth = object->boxDepth/2.f;
 
-	real32 xBoundsMin = object->position.x - halfWidth;
-	real32 xBoundsMax = object->position.x + halfWidth;
-	real32 yBoundsMin = object->position.y - halfHeight;
-	real32 yBoundsMax = object->position.y + halfHeight;
-	real32 zBoundsMin = object->position.z - halfDepth;
-	real32 zBoundsMax = object->position.z + halfDepth;
+	real32 xBoundsMin = objectPosition.x - halfWidth;
+	real32 xBoundsMax = objectPosition.x + halfWidth;
+	real32 yBoundsMin = objectPosition.y - halfHeight;
+	real32 yBoundsMax = objectPosition.y + halfHeight;
+	real32 zBoundsMin = objectPosition.z - halfDepth;
+	real32 zBoundsMax = objectPosition.z + halfDepth;
 
-	v4 point;
+	i32 t0Plane = 0;
+	i32 t1Plane = 0;
 
 	real32 t0 = (xBoundsMin - origin->x)/rayDirection.x;
 	real32 t1 = (xBoundsMax + origin->x)/rayDirection.x;
@@ -586,18 +590,6 @@ _scene_get_ray_box_intersection(scene_object *object,
 		real32 swap = t0;
 		t0 = t1;
 		t1 = swap;
-	}
-
-	vec4_scalar3(&rayDirection, t0, &point);
-	vec4_add3(origin, &point, &point);
-
-	if(point.x < object->position.x)
-	{
-		*outNormal = vec4_init(-1.f, 0.f, 0.f, 0.f);
-	}
-	else if(point.x > object->position.x)
-	{
-		*outNormal = vec4_init(1.f, 0.f, 0.f, 0.f);
 	}
 
 	real32 tY0 = (yBoundsMin - origin->y)/rayDirection.y;
@@ -618,35 +610,13 @@ _scene_get_ray_box_intersection(scene_object *object,
 	if(tY0 > t0)
 	{
 		t0 = tY0;
-
-		vec4_scalar3(&rayDirection, t0, &point);
-		vec4_add3(origin, &point, &point);
-
-		if(point.y < object->position.y)
-		{
-			*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
-		}
-		else if(point.y > object->position.y)
-		{
-			*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
-		}
+		t0Plane = 1;
 	}
 	
 	if(tY1 < t1)
 	{
 		t1 = tY1;
-		
-		vec4_scalar3(&rayDirection, t1, &point);
-		vec4_add3(origin, &point, &point);
-
-		if(point.y < object->position.y)
-		{
-			*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
-		}
-		else if(point.y > object->position.y)
-		{
-			*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
-		}
+		t1Plane = 1;
 	}
 	
 	real32 tZ0 = (zBoundsMin - origin->z)/rayDirection.z;
@@ -667,38 +637,110 @@ _scene_get_ray_box_intersection(scene_object *object,
 	if(tZ0 > t0)
 	{
 		t0 = tZ0;
-
-		vec4_scalar3(&rayDirection, t0, &point);
-		vec4_add3(origin, &point, &point);
-	
-		if(point.z < object->position.z)
-		{
-			*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
-		}
-		else if(point.z > object->position.z)
-		{
-			*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
-		}
+		t0Plane = 2;
 	}
 	
 	if(tZ1 < t1)
 	{
 		t1 = tZ1;
-
-		vec4_scalar3(&rayDirection, t1, &point);
-		vec4_add3(origin, &point, &point);
-	
-		if(point.z < object->position.z)
-		{
-			*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
-		}
-		else if(point.z > object->position.z)
-		{
-			*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
-		}
+		t1Plane = 2;
 	}
 
-	*outDistance = vec4_distance3(origin, &point);
+
+	if(t0 >= t1)
+	{
+		*outDistance = t1;
+
+		v4 point = rayDirection;
+		vec4_scalar3(&point, t1, &point);
+		vec4_add3(origin, &point, &point);
+
+		switch(t1Plane)
+		{
+			case 0:
+			{
+				if(point.x < objectPosition.x)
+				{
+					*outNormal = vec4_init(-1.f, 0.f, 0.f, 0.f);
+				}
+				else
+				{
+					*outNormal = vec4_init(1.f, 0.f, 0.f, 0.f);
+				}
+			} break;
+			
+			case 1:
+			{
+				if(point.y < objectPosition.y)
+				{
+					*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
+				}
+				else
+				{
+					*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
+				}
+			} break;
+			
+			case 2:
+			{
+				if(point.z < objectPosition.z)
+				{
+					*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
+				}
+				else
+				{
+					*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
+				}
+			} break;
+		}
+	}
+	else
+	{
+		*outDistance = t0;
+
+		v4 point = rayDirection;
+		vec4_scalar3(&point, t0, &point);
+		vec4_add3(origin, &point, &point);
+
+		switch(t0Plane)
+		{
+			case 0:
+			{
+				if(point.x < objectPosition.x)
+				{
+					*outNormal = vec4_init(-1.f, 0.f, 0.f, 0.f);
+				}
+				else
+				{
+					*outNormal = vec4_init(1.f, 0.f, 0.f, 0.f);
+				}
+			} break;
+			
+			case 1:
+			{
+				if(point.y < objectPosition.y)
+				{
+					*outNormal = vec4_init(0.f, -1.f, 0.f, 0.f);
+				}
+				else
+				{
+					*outNormal = vec4_init(0.f, 1.f, 0.f, 0.f);
+				}
+			} break;
+			
+			case 2:
+			{
+				if(point.z < objectPosition.z)
+				{
+					*outNormal = vec4_init(0.f, 0.f, -1.f, 0.f);
+				}
+				else
+				{
+					*outNormal = vec4_init(0.f, 0.f, 1.f, 0.f);
+				}
+			} break;
+		}
+	}
 
 	return B32_TRUE;
 }
@@ -766,7 +808,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 				real32 d;
 				v4 n;
 
-				if(_scene_get_ray_box_intersection(o, viewportPosition, &origin, 
+				if(_scene_get_ray_box_intersection(scene, o, viewportPosition, &origin, 
 							&n, &d))
 				{
 					if(obj)
@@ -779,7 +821,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 							vec4_scalar(&rayDirection, distance, &intersectionPoint);
 							vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
 
-							vec4_add3(&obj->position, &origin, &objPosition);
+							vec4_subtract3(&obj->position, &scene->camera.position, &objPosition);
 
 							surfaceNormal = n;
 						}
@@ -792,7 +834,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						vec4_scalar(&rayDirection, distance, &intersectionPoint);
 						vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
 
-						vec4_add3(&obj->position, &origin, &objPosition);
+						vec4_subtract3(&obj->position, &scene->camera.position, &objPosition);
 						
 						surfaceNormal = n;
 					}
