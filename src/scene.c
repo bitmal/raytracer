@@ -535,7 +535,7 @@ _scene_get_ray_sphere_intersection(raytracer_scene *scene, scene_object *object,
 		const v4 *viewportPosition, const v4 *origin, real32 *out0, real32 *out1)
 {
 	v4 objPosition;
-	vec4_add3(&object->position, &scene->camera.position, &objPosition);
+	vec4_subtract3(&object->position, &scene->camera.position, &objPosition);
 
 	v4 CO;
 	vec4_subtract3(origin, &objPosition, &CO);
@@ -742,7 +742,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 								vec4_scalar(&rayDirection, distance, &intersectionPoint);
 								vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
 			
-								vec4_add3(&obj->position, &scene->camera.position, &objPosition);
+								vec4_subtract3(&obj->position, &scene->camera.position, &objPosition);
 								vec4_direction(&objPosition, &intersectionPoint, &surfaceNormal);
 							}
 						}
@@ -754,7 +754,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 							vec4_scalar(&rayDirection, distance, &intersectionPoint);
 							vec4_add3(&origin, &intersectionPoint, &intersectionPoint);
 
-							vec4_add3(&obj->position, &scene->camera.position, &objPosition);
+							vec4_subtract3(&obj->position, &scene->camera.position, &objPosition);
 							vec4_direction(&objPosition, &intersectionPoint, &surfaceNormal);
 						}
 					}
@@ -911,7 +911,7 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					scene_light *light = &scene->lights[i];
 
 					v4 lightPosition;
-					vec4_add3(&light->position, &scene->camera.position, &lightPosition);
+					vec4_subtract3(&light->position, &scene->camera.position, &lightPosition);
 					
 					b32 isOccluded = B32_FALSE;
 					for(i32 j = 0; j < scene->objectCount; ++j)

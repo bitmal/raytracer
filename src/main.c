@@ -75,7 +75,7 @@ main(int argc, char **argv)
 
 #if 1
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
-	v4 pointPosition = {{-2.f, 0.f, 2.5f, 0.f}};
+	v4 pointPosition = {{-2.f, 0.f, 1.5f, 0.f}};
 	light_set_value(scene, pointLight, LIGHT_VALUE_POSITION, &pointPosition);
 	real32 pointIntensity = 1.f;
 	color32 pointColor = ((u32)(0xFF*pointIntensity) << 16) | 
@@ -105,7 +105,7 @@ main(int argc, char **argv)
 	i32 fpsText = canvas_text_create(mainCanvas);
 	i32 camText = canvas_text_create(mainCanvas);
 	i32 screenshotText = canvas_text_create(screenshotCanvas);
-	v4 camPosition = {{0, 0, 2.5f, 0}};
+	v4 camPosition = {{0, 0, 0.f, 0}};
 	scene_set_camera_position(scene, &camPosition);
 
 #define CAM_MOVEMENT 0.1f
