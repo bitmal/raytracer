@@ -52,6 +52,7 @@ typedef struct command_bar
 	color32 backgroundColor;
 	b32 isShow;
 	i32 textObject;
+	i32 bufferStrSize;
 	char textBuffer[COMMAND_BAR_STR_LENGTH];
 } command_bar;
 
@@ -59,7 +60,8 @@ command_bar *
 command_bar_get();
 
 void
-command_bar_execute(command_bar *bar, raytracer_canvas *canvas);
+command_bar_execute(command_bar *bar, raytracer_renderer *renderer, raytracer_scene *scene, 
+		raytracer_canvas *screenshotCanvas, raytracer_canvas *canvas);
 
 void
 command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str);
@@ -433,6 +435,13 @@ main(int argc, char **argv)
 
 							command_bar_write(commandBar, mainCanvas, (const char *)cmdBuffer);
 						}
+						else if(sym == XK_Return)
+						{
+							command_bar *commandBar = command_bar_get();
+
+							command_bar_execute(commandBar, renderer, scene, screenshotCanvas, mainCanvas);
+							command_bar_toggle(commandBar, mainCanvas);
+						}
 					}
 				} break;
 
@@ -532,6 +541,7 @@ command_bar_get()
 	bar->width = 300;
 	bar->height = 20;
 	bar->backgroundColor = 0xCC00; // green
+	bar->bufferStrSize = 1;
 	bar->textBuffer[0] = '\0';
 	bar->isShow = B32_FALSE;
 	bar->cursorLocation = 0;
@@ -543,21 +553,22 @@ command_bar_get()
 }
 
 void
+command_bar_execute(command_bar *bar, raytracer_renderer *renderer, raytracer_scene *scene, 
+		raytracer_canvas *screenshotCanvas, raytracer_canvas *canvas)
+{
+	enum
+	{
+		SYMBOL_SLASH,
+		SYMBOL_EQUALS,
+		SYMBOL_COMMA,
+		SYMBOL_UNDERSCORE,
+		SYMBOL_VALUE
+	} symbol_t;
+}
+
+void
 command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str)
 {
-	i32 bufferLength = strlen(bar->textBuffer);
-	i32 strLength = strlen(str);
-	i32 length = bufferLength + strLength + 1;
-
-	if(length <= COMMAND_BAR_STR_LENGTH)
-	{
-		strcat(bar->textBuffer, str);
-	}
-	else
-	{
-		fprintf(stderr, "Command buffer full!\n");
-	}
-
 	if(bar->textObject == CANVAS_TEXT_NULL)
 	{
 		bar->textObject = canvas_text_create(canvas);
@@ -568,10 +579,23 @@ command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str)
 		}
 	}
 
-	canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, 
-			bar->textBuffer);
+	i32 bufferLength = strlen(bar->textBuffer);
+	i32 strLength = strlen(str);
+	i32 length = bufferLength + strLength + 1;
 
-	bar->cursorLocation = length;
+	if(length <= COMMAND_BAR_STR_LENGTH)
+	{
+		strcat(bar->textBuffer, str);
+		bar->cursorLocation = length;
+		bar->bufferStrSize = length;
+
+		canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, bar->textBuffer);
+	}
+	else
+	{
+		fprintf(stderr, "Command buffer full!\n");
+		return;
+	}
 }
 
 void
@@ -591,6 +615,5 @@ command_bar_toggle(command_bar *bar, raytracer_canvas *canvas)
 
 	bar->textBuffer[0] = '\0';
 	canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, bar->textBuffer);
-
 	bar->cursorLocation = 0;
 }

@@ -256,6 +256,25 @@ canvas_text_set(raytracer_canvas *canvas, i32 textId, i32 x, i32 y, const char *
 }
 
 void
+canvas_text_append(raytracer_canvas *canvas, i32 textId, const char *str)
+{
+	canvas_text *text = &canvas->texts[textId];
+
+	i32 strLength = strlen(str) + 1;
+	i32 textLength = text->textBufferSize;
+	i32 totalLength = textLength + strLength - 1;
+
+	if(totalLength > text->textBufferCapacity)
+	{
+		text->textBuffer = realloc(text->textBuffer, text->textBufferCapacity = totalLength + 
+				25);
+	}
+
+	strcat(text->textBuffer, str);
+	text->textBufferSize = totalLength;
+}
+
+void
 canvas_text_toggle(raytracer_canvas *canvas, i32 textId)
 {
 	canvas->texts[textId].isShow = !canvas->texts[textId].isShow;
