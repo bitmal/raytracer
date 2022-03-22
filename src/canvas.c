@@ -12,6 +12,8 @@ typedef struct canvas_text
 	i32 y;
 	char *textBuffer;
 	i32 textBufferSize;
+	i32 textBufferCapacity;
+	b32 isShow;
 } canvas_text;
 
 struct raytracer_canvas
@@ -223,8 +225,10 @@ canvas_text_create(raytracer_canvas *canvas)
 
 	canvas->texts[index].x = 0;
 	canvas->texts[index].y = 0;
-	canvas->texts[index].textBuffer = NULL;
+	canvas->texts[index].textBufferCapacity = 100;
+	canvas->texts[index].textBuffer = malloc(canvas->texts[index].textBufferCapacity);
 	canvas->texts[index].textBufferSize = 0;
+	canvas->texts[index].isShow = B32_TRUE;
 
 	return index;
 }
@@ -237,40 +241,30 @@ canvas_text_set(raytracer_canvas *canvas, i32 textId, i32 x, i32 y, const char *
 	text->x = x;
 	text->y = y;
 
-	i32 strLength = 0;
-	for(const char *c = str; *c; ++c, ++strLength);
+	i32 strLength = strlen(str);
+	i32 textLength = strlen(text->textBuffer);
+	i32 totalLength = strLength + textLength + 1;
 
-	if(strLength > 0)
+	if(totalLength > text->textBufferCapacity)
 	{
-		if(strLength > (text->textBufferSize + 1))
-		{
-			if(text->textBufferSize > 0)
-			{
-				text->textBuffer = realloc(text->textBuffer, strLength + 1);
-			}
-			else
-			{
-				text->textBuffer = malloc(strLength + 1);
-			}
-
-			text->textBufferSize = strLength + 1;
-			strcpy(text->textBuffer, str);
-		}
-		else
-		{
-			strcpy(text->textBuffer, str);
-		}
+		text->textBuffer = realloc(text->textBuffer, text->textBufferCapacity = totalLength + 
+				100);
 	}
-	else
-	{
-		if(text->textBufferSize < 1)
-		{
-			text->textBuffer = malloc(1);
-			text->textBufferSize = 1;
-		}
 
-		text->textBuffer[0] = '\0';
-	}
+	strcat(text->textBuffer, str);
+	text->textBufferSize = textLength + strLength;
+}
+
+void
+canvas_text_toggle(raytracer_canvas *canvas, i32 textId)
+{
+	canvas->texts[textId].isShow = !canvas->texts[textId].isShow;
+}
+
+b32
+canvas_text_is_show(raytracer_canvas *canvas, i32 textId)
+{
+	return canvas->texts[textId].isShow;
 }
 
 Window
@@ -329,14 +323,17 @@ canvas_flip(raytracer_canvas *canvas)
 		{
 			canvas_text *text = &canvas->texts[i];
 
-			if(text->textBufferSize > 0)
+			if(text->isShow)
 			{
-				i32 strLength = 0;
-				for(const char *c = text->textBuffer; *c; ++c, ++strLength);
+				if(text->textBufferSize > 0)
+				{
+					i32 strLength = 0;
+					for(const char *c = text->textBuffer; *c; ++c, ++strLength);
 
-				XDrawImageString(canvas->xlib.display, canvas->xlib.window, 
-						DefaultGC(canvas->xlib.display, canvas->xlib.screen), text->x, text->y, 
-						text->textBuffer, strLength);
+					XDrawImageString(canvas->xlib.display, canvas->xlib.window, 
+							DefaultGC(canvas->xlib.display, canvas->xlib.screen), text->x, text->y, 
+							text->textBuffer, strLength);
+				}
 			}
 		}
 

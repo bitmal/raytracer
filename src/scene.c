@@ -646,8 +646,7 @@ _scene_get_ray_box_intersection(raytracer_scene *scene, scene_object *object,
 		t1Plane = 2;
 	}
 
-
-	if(t0 >= t1)
+	if(t0 > t1)
 	{
 		*outDistance = t1;
 
@@ -805,8 +804,8 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 
 			case SCENE_OBJECT_BOX:
 			{
-				real32 d;
 				v4 n;
+				real32 d;
 
 				if(_scene_get_ray_box_intersection(scene, o, viewportPosition, &origin, 
 							&n, &d))
@@ -886,26 +885,46 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 						v4 lightPosition;
 						vec4_add3(&intersectionPoint, &invLightDirection, &lightPosition);
 
-						real32 d[2];
-						i32 intersectionCount = _scene_get_ray_sphere_intersection(scene, o, &lightPosition, 
-								&intersectionPoint, &d[0], &d[1]);
-
-						if(intersectionCount > 0)
+						switch(o->type)
 						{
-							for(i32 k = 0; k < intersectionCount; ++k)
+							case SCENE_OBJECT_SPHERE:
 							{
-								if(d[k] >= 0)
+								real32 d[2];
+								i32 intersectionCount = _scene_get_ray_sphere_intersection(scene, o, &lightPosition, 
+										&intersectionPoint, &d[0], &d[1]);
+
+								if(intersectionCount > 0)
 								{
-									isOccluded = B32_TRUE;
-
-									break;
+									for(i32 k = 0; k < intersectionCount; ++k)
+									{
+										if(d[k] >= 0)
+										{
+											isOccluded = B32_TRUE;
+											break;
+										}
+									}
 								}
-							}
-
-							if(isOccluded)
+							} break;
+							
+							case SCENE_OBJECT_BOX:
 							{
-								break;
-							}
+								v4 n;
+								real32 d;
+
+								if(_scene_get_ray_box_intersection(scene, o, &lightPosition, &intersectionPoint, 
+										&n, &d))
+								{
+									if(d >= 0)
+									{
+										isOccluded = B32_TRUE;
+									}
+								}
+							} break;
+						}
+
+						if(isOccluded)
+						{
+							break;
 						}
 					}
 
@@ -955,6 +974,14 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 					v4 lightPosition;
 					vec4_subtract3(&light->position, &scene->camera.position, &lightPosition);
 					
+					v4 lightDirection;
+					vec4_direction(&lightPosition, &intersectionPoint, &lightDirection);
+					
+					v4 invLightDirection;
+					vec4_scalar3(&lightDirection, -1.f, &invLightDirection);
+
+					vec4_add3(&intersectionPoint, &invLightDirection, &lightPosition);
+					
 					b32 isOccluded = B32_FALSE;
 					for(i32 j = 0; j < scene->objectCount; ++j)
 					{
@@ -965,39 +992,54 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 							continue;
 						}
 
-						v4 oPos;
-						vec4_add3(&o->position, &scene->camera.position, &oPos);
-
-						real32 d[2];
-						i32 intersectionCount = _scene_get_ray_sphere_intersection(scene, o, &lightPosition, 
-								&intersectionPoint, &d[0], &d[1]);
-
-						if(intersectionCount > 0)
+						switch(o->type)
 						{
-							for(i32 k = 0; k < intersectionCount; ++k)
+							case SCENE_OBJECT_SPHERE:
 							{
-								if(d[k] >= 0)
+								real32 d[2];
+								i32 intersectionCount = _scene_get_ray_sphere_intersection(scene, o, &lightPosition, 
+										&intersectionPoint, &d[0], &d[1]);
+
+								if(intersectionCount > 0)
 								{
-									isOccluded = B32_TRUE;
-
-									break;
+									for(i32 k = 0; k < intersectionCount; ++k)
+									{
+										if(d[k] >= 0)
+										{
+											isOccluded = B32_TRUE;
+											break;
+										}
+									}
 								}
-							}
-
-							if(isOccluded)
+							} break;
+							
+							case SCENE_OBJECT_BOX:
 							{
-								break;
-							}
+								v4 n;
+								real32 d;
+
+								if(_scene_get_ray_box_intersection(scene, o, &lightPosition, &intersectionPoint, 
+										&n, &d))
+								{
+									if(d >= 0)
+									{
+										isOccluded = B32_TRUE;
+									}
+								}
+							} break;
+						}
+
+						if(isOccluded)
+						{
+							break;
 						}
 					}
 
 					if(isOccluded)
 					{
-						continue;
+						break;
 					}
 
-					v4 lightDirection;
-					vec4_direction(&lightPosition, &intersectionPoint, &lightDirection);
 					real32 lightDistance = vec4_distance3(&lightPosition, &intersectionPoint);
 					real32 distanceCoeff = lightDistance <= light->range ? (1.f - lightDistance/light->range) : 0.f;
 
@@ -1063,4 +1105,14 @@ scene_trace_ray(raytracer_scene *scene, const v4 *viewportPosition, color32 *out
 	}
 
 	return B32_FALSE;
+}
+
+void
+scene_save(raytracer_scene *scene, const char *name)
+{
+}
+
+void
+scene_load(raytracer_scene *scene, const char *name)
+{
 }

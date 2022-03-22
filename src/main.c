@@ -27,6 +27,46 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+#define COMMAND_BAR_STR_LENGTH 50
+
+typedef enum command_type
+{
+	COMMAND_TYPE_TEST
+} command_t;
+
+const char *g_CommandTypeStrings[] = {
+	"COMMAND_TYPE_TEST"
+};
+
+#define COMMAND_TYPE_STRING(type) (g_CommandTypeStrings[type])
+
+typedef struct command_bar
+{
+	i32 x;
+	i32 y;
+	i32 width;
+	i32 height;
+	i32 cursorSize;
+	i32 cursorLocation;
+	color32 cursorColor;
+	color32 backgroundColor;
+	b32 isShow;
+	i32 textObject;
+	char textBuffer[COMMAND_BAR_STR_LENGTH];
+} command_bar;
+
+command_bar *
+command_bar_get();
+
+void
+command_bar_execute(command_bar *bar, raytracer_canvas *canvas);
+
+void
+command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str);
+
+void
+command_bar_toggle(command_bar *bar, raytracer_canvas *canvas);
+
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
 #define PIXEL_SIZE 1.f
@@ -60,12 +100,12 @@ main(int argc, char **argv)
 // SCENE_0
 #ifdef SCENE_0
 	i32 ambientLight = scene_create_light(scene, LIGHT_AMBIENT);
-	real32 ambientIntensity = 0.5f;
+	real32 ambientIntensity = 0.15f;
 	light_set_value(scene, ambientLight, LIGHT_VALUE_INTENSITY, &ambientIntensity);
 
-#if 0
+#if 1
 	i32 directionalLight = scene_create_light(scene, LIGHT_DIRECTIONAL);
-	v4 directionalDir = {{1.f, 0.f, 0.f, 0.f}};
+	v4 directionalDir = {{0.f, 1.f, 0.f, 0.f}};
 	light_set_value(scene, directionalLight, LIGHT_VALUE_DIRECTION, &directionalDir);
 	real32 directionalIntensity = 1.f;
 	color32 directionalColor = ((u32)(0xFF*directionalIntensity) << 16) | 
@@ -73,9 +113,9 @@ main(int argc, char **argv)
 	light_set_value(scene, directionalLight, LIGHT_VALUE_COLOR, &directionalColor);
 #endif
 
-#if 1
+#if 0
 	i32 pointLight = scene_create_light(scene, LIGHT_POINT);
-	v4 pointPosition = {{-2.f, 0.f, 1.5f, 0.f}};
+	v4 pointPosition = {{0.f, -2.f, 2.5f, 0.f}};
 	light_set_value(scene, pointLight, LIGHT_VALUE_POSITION, &pointPosition);
 	real32 pointIntensity = 1.f;
 	color32 pointColor = ((u32)(0xFF*pointIntensity) << 16) | 
@@ -90,16 +130,20 @@ main(int argc, char **argv)
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_COLOR, &sphereColor);
 	real32 sphereAlbedo = 32.f;
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_ALBEDO, &sphereAlbedo);
-	v4 spherePosition = {{1.f, 0.f, 2.5f, 0.f}};
+	v4 spherePosition = {{-0.55f, -1.f, 2.5f, 0.f}};
 	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_POSITION, &spherePosition);
+	real32 sphereRadius = 0.5f;
+	scene_object_set_value(scene, sphere, SCENE_OBJECT_VALUE_SPHERE_RADIUS, &sphereRadius);
 
 	i32 sphere1 = scene_create_object(scene, SCENE_OBJECT_BOX);
 	color32 sphere1Color = 0xFF0000;
 	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_COLOR, &sphere1Color);
 	real32 sphere1Albedo = 32.f;
 	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_ALBEDO, &sphere1Albedo);
-	v4 sphere1Position = {{-1.f, 0.f, 2.5f, 0.f}};
+	v4 sphere1Position = {{-0.55f, 0.f, 2.5f, 0.f}};
 	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_POSITION, &sphere1Position);
+	real32 sphere1Radius = 0.5f;
+	scene_object_set_value(scene, sphere1, SCENE_OBJECT_VALUE_SPHERE_RADIUS, &sphere1Radius);
 #endif
 
 	i32 fpsText = canvas_text_create(mainCanvas);
@@ -114,6 +158,19 @@ main(int argc, char **argv)
 	XSync(display, False);
 
 	b32 isRunning = B32_TRUE;
+
+	b32 isFirstKeystroke;
+	{
+		char keys[32];
+		XQueryKeymap(display, keys);
+
+		for(i32 i = 0; i < 8; ++i)
+		{
+			const u32 *pointer = &((u32 *)keys)[i];
+
+			isFirstKeystroke = (b32)((*pointer) != 0);
+		}
+	}
 
 	struct timespec prevTime;
 	clock_gettime(CLOCK_MONOTONIC, &prevTime);
@@ -134,57 +191,151 @@ main(int argc, char **argv)
 
 				case KeyPress:
 				{
+					if(isFirstKeystroke)
+					{
+						isFirstKeystroke = B32_FALSE;
+						continue;
+					}
+
 					KeySym sym = XkbKeycodeToKeysym(display, evt.xkey.keycode, 0, 0);
 
-					if(sym == XK_w)
+					if(!command_bar_get()->isShow)
 					{
-						real32 pixelSize = scene_get_pixel_size(scene);
-						pixelSize += PIXEL_SIZE_SHIFT_WEIGHT;
-
-						scene_set_pixel_size(scene, pixelSize);
-					}
-					else if (sym == XK_h)
-					{
-						camPosition.x -= CAM_MOVEMENT;
-						scene_set_camera_position(scene, &camPosition);
-					}
-					else if (sym == XK_l)
-					{
-						camPosition.x += CAM_MOVEMENT;
-						scene_set_camera_position(scene, &camPosition);
-					}
-					else if (sym == XK_j)
-					{
-						camPosition.y -= CAM_MOVEMENT;
-						scene_set_camera_position(scene, &camPosition);
-					}
-					else if (sym == XK_k)
-					{
-						camPosition.y += CAM_MOVEMENT;
-						scene_set_camera_position(scene, &camPosition);
-					}
-					else if (sym == XK_u)
-					{
-						camPosition.z += CAM_MOVEMENT;
-						scene_set_camera_position(scene, &camPosition);
-					}
-					else if (sym == XK_n)
-					{
-						camPosition.z -= CAM_MOVEMENT;
-						scene_set_camera_position(scene, &camPosition);
-					}
-					else if(sym == XK_space)
-					{
-						if(!canvas_is_show(screenshotCanvas))
+						if (sym == XK_Escape)
 						{
-							if(!screenshotTextures)
+							isRunning = B32_FALSE;
+						}
+						else if(sym == XK_Return)
+						{
+							command_bar *commandBar = command_bar_get();
+							command_bar_toggle(commandBar, mainCanvas);
+						}
+						else if(sym == XK_w)
+						{
+							real32 pixelSize = scene_get_pixel_size(scene);
+							pixelSize += PIXEL_SIZE_SHIFT_WEIGHT;
+
+							scene_set_pixel_size(scene, pixelSize);
+						}
+						else if (sym == XK_h)
+						{
+							camPosition.x -= CAM_MOVEMENT;
+							scene_set_camera_position(scene, &camPosition);
+						}
+						else if (sym == XK_l)
+						{
+							camPosition.x += CAM_MOVEMENT;
+							scene_set_camera_position(scene, &camPosition);
+						}
+						else if (sym == XK_j)
+						{
+							camPosition.y -= CAM_MOVEMENT;
+							scene_set_camera_position(scene, &camPosition);
+						}
+						else if (sym == XK_k)
+						{
+							camPosition.y += CAM_MOVEMENT;
+							scene_set_camera_position(scene, &camPosition);
+						}
+						else if (sym == XK_u)
+						{
+							camPosition.z += CAM_MOVEMENT;
+							scene_set_camera_position(scene, &camPosition);
+						}
+						else if (sym == XK_n)
+						{
+							camPosition.z -= CAM_MOVEMENT;
+							scene_set_camera_position(scene, &camPosition);
+						}
+						else if(sym == XK_space)
+						{
+							if(!canvas_is_show(screenshotCanvas))
 							{
-								DIR *d = opendir("screenshots");
-								if(d)
+								if(!screenshotTextures)
+								{
+									DIR *d = opendir("screenshots");
+									if(d)
+									{
+										const char *filename = NULL;
+
+										struct dirent *dir;
+										while((dir = readdir(d)))
+										{
+											if(strcmp(dir->d_name, ".scrn") > 0)
+											{
+												filename = dir->d_name;
+												break;
+											}
+										}
+
+										if(filename)
+										{
+											char pathBuffer[50];
+											sprintf(pathBuffer, "screenshots/%s", filename);
+
+											screenshotTextures = malloc(sizeof(i32));
+											screenshotTextures[0] = renderer_create_texture_from_file(renderer, pathBuffer);
+											++screenshotTextureCount;
+
+											currentScreenshot = 0;
+										}
+										else
+										{
+											fprintf(stderr, "No screenshots to show!\n");
+										}
+
+										closedir(d);
+									}
+									else
+									{
+										fprintf(stderr, "No screenshots to show!\n");
+									}
+								}
+
+								if(currentScreenshot > -1)
+								{
+									i32 textureWidth = renderer_get_texture_width(renderer, screenshotTextures[currentScreenshot]);
+									i32 textureHeight = renderer_get_texture_height(renderer, screenshotTextures[currentScreenshot]);
+
+									canvas_resize(screenshotCanvas, textureWidth, textureHeight);
+									canvas_show(screenshotCanvas);
+								}
+								else
+								{
+									fprintf(stderr, "No screenshots to show!\n");
+								}
+							}
+							else
+							{
+								canvas_hide(screenshotCanvas);
+							}
+						}
+						else if(sym == XK_x)
+						{
+							if(screenshotTextureCount > 0)
+							{
+								++currentScreenshot;
+								if(currentScreenshot == screenshotTextureCount)
 								{
 									const char *filename = NULL;
-
+									DIR *d = opendir("screenshots");
 									struct dirent *dir;
+
+									for(i32 i = 0; i < screenshotTextureCount;)
+									{
+										if((dir = readdir(d)))
+										{
+											if(strcmp(dir->d_name, ".scrn") > 0)
+											{
+												++i;
+											}
+										}
+										else
+										{
+											break;
+										}
+									}
+
 									while((dir = readdir(d)))
 									{
 										if(strcmp(dir->d_name, ".scrn") > 0)
@@ -194,162 +345,101 @@ main(int argc, char **argv)
 										}
 									}
 
+									closedir(d);
+
 									if(filename)
 									{
 										char pathBuffer[50];
 										sprintf(pathBuffer, "screenshots/%s", filename);
 
-										screenshotTextures = malloc(sizeof(i32));
-										screenshotTextures[0] = renderer_create_texture_from_file(renderer, pathBuffer);
-										++screenshotTextureCount;
-
-										currentScreenshot = 0;
+										screenshotTextures = realloc(screenshotTextures, sizeof(i32)*(++screenshotTextureCount));
+										screenshotTextures[currentScreenshot] = renderer_create_texture_from_file(renderer, pathBuffer);
 									}
 									else
 									{
-										fprintf(stderr, "No screenshots to show!\n");
+										currentScreenshot = 0;
 									}
-
-									closedir(d);
 								}
-								else
-								{
-									fprintf(stderr, "No screenshots to show!\n");
-								}
-							}
 
-							if(currentScreenshot > -1)
-							{
 								i32 textureWidth = renderer_get_texture_width(renderer, screenshotTextures[currentScreenshot]);
 								i32 textureHeight = renderer_get_texture_height(renderer, screenshotTextures[currentScreenshot]);
 
 								canvas_resize(screenshotCanvas, textureWidth, textureHeight);
-								canvas_show(screenshotCanvas);
-							}
-							else
-							{
-								fprintf(stderr, "No screenshots to show!\n");
 							}
 						}
-						else
-						{
-							canvas_hide(screenshotCanvas);
-						}
-					}
-					else if(sym == XK_x)
-					{
-						if(screenshotTextureCount > 0)
-						{
-							++currentScreenshot;
-							if(currentScreenshot == screenshotTextureCount)
-							{
-								const char *filename = NULL;
-								DIR *d = opendir("screenshots");
-								struct dirent *dir;
-
-								for(i32 i = 0; i < screenshotTextureCount;)
-								{
-									if((dir = readdir(d)))
-									{
-										if(strcmp(dir->d_name, ".scrn") > 0)
-										{
-											++i;
-										}
-									}
-									else
-									{
-										break;
-									}
-								}
-
-								while((dir = readdir(d)))
-								{
-									if(strcmp(dir->d_name, ".scrn") > 0)
-									{
-										filename = dir->d_name;
-										break;
-									}
-								}
-
-								closedir(d);
-
-								if(filename)
-								{
-									char pathBuffer[50];
-									sprintf(pathBuffer, "screenshots/%s", filename);
-
-									screenshotTextures = realloc(screenshotTextures, sizeof(i32)*(++screenshotTextureCount));
-									screenshotTextures[currentScreenshot] = renderer_create_texture_from_file(renderer, pathBuffer);
-								}
-								else
-								{
-									currentScreenshot = 0;
-								}
-							}
-
-							i32 textureWidth = renderer_get_texture_width(renderer, screenshotTextures[currentScreenshot]);
-							i32 textureHeight = renderer_get_texture_height(renderer, screenshotTextures[currentScreenshot]);
-
-							canvas_resize(screenshotCanvas, textureWidth, textureHeight);
-						}
-					}
 
 #ifdef SCENE_0 
-					else if(sym == XK_a)
-					{
-					}
-					else if(sym == XK_d)
-					{
-					}
-					else if(sym == XK_s)
-					{
-						real32 pixelSize = scene_get_pixel_size(scene);
-						pixelSize -= PIXEL_SIZE_SHIFT_WEIGHT;
-
-						if(pixelSize < 1.f)
+						else if(sym == XK_a)
 						{
-							pixelSize = 1.f;
 						}
+						else if(sym == XK_d)
+						{
+						}
+						else if(sym == XK_s)
+						{
+							real32 pixelSize = scene_get_pixel_size(scene);
+							pixelSize -= PIXEL_SIZE_SHIFT_WEIGHT;
 
-						scene_set_pixel_size(scene, pixelSize);
-					}
-					else if(sym == XK_w)
-					{
-						real32 pixelSize = scene_get_pixel_size(scene);
-						pixelSize += PIXEL_SIZE_SHIFT_WEIGHT;
+							if(pixelSize < 1.f)
+							{
+								pixelSize = 1.f;
+							}
 
-						scene_set_pixel_size(scene, pixelSize);
-					}
-					else if(sym == XK_Print)
-					{
-						renderer_save_next_frame(renderer, "screenshot");
-					}
+							scene_set_pixel_size(scene, pixelSize);
+						}
+						else if(sym == XK_w)
+						{
+							real32 pixelSize = scene_get_pixel_size(scene);
+							pixelSize += PIXEL_SIZE_SHIFT_WEIGHT;
+
+							scene_set_pixel_size(scene, pixelSize);
+						}
+						else if(sym == XK_Print)
+						{
+							renderer_save_next_frame(renderer, "screenshot");
+						}
 #endif
 
 #ifdef SCENE_1
-					else if(sym == XK_s)
-					{
-						real32 pixelSize = scene_get_pixel_size(scene);
-						pixelSize -= PIXEL_SIZE_SHIFT_WEIGHT;
-
-						if(pixelSize < 1.f)
+						else if(sym == XK_s)
 						{
-							pixelSize = 1.f;
-						}
+							real32 pixelSize = scene_get_pixel_size(scene);
+							pixelSize -= PIXEL_SIZE_SHIFT_WEIGHT;
 
-						scene_set_pixel_size(scene, pixelSize);
-					}
+							if(pixelSize < 1.f)
+							{
+								pixelSize = 1.f;
+							}
+
+							scene_set_pixel_size(scene, pixelSize);
+						}
 #endif
+					}
+					else
+					{
+						if(sym == XK_Escape)
+						{
+							command_bar *commandBar = command_bar_get();
+							command_bar_toggle(commandBar, mainCanvas);
+						}
+						else if((sym >= XK_a && sym < XK_z) || (sym >= XK_A && sym < XK_Z) ||
+								(sym == XK_slash || sym == XK_space) || (sym == XK_equal))
+						{
+							command_bar *commandBar = command_bar_get();
+							command_bar_write(commandBar, mainCanvas, (const char *)&sym);
+						}
+					}
 				} break;
 
 				case KeyRelease:
 				{
-					KeySym sym = XkbKeycodeToKeysym(display, evt.xkey.keycode, 0, 0);
-
-					if(sym == XK_Escape)
+					if(isFirstKeystroke)
 					{
-						isRunning = B32_FALSE;
+						isFirstKeystroke = B32_FALSE;
+						continue;
 					}
+
+					//KeySym sym = XkbKeycodeToKeysym(display, evt.xkey.keycode, 0, 0);
 				} break;
 			}
 		}
@@ -381,6 +471,17 @@ main(int argc, char **argv)
 
 		canvas_text_set(mainCanvas, camText, (splitWidth*3.f)-1, 50, camTextBuffer);
 
+		command_bar *commandBar = command_bar_get();
+		if(commandBar->isShow)
+		{
+			canvas_put_square(mainCanvas, commandBar->x, commandBar->y, commandBar->width,
+					commandBar->height, commandBar->backgroundColor);
+
+			canvas_put_square(mainCanvas, commandBar->x + commandBar->cursorSize*
+					commandBar->cursorLocation, commandBar->y, commandBar->cursorSize,
+					commandBar->height, commandBar->cursorColor);
+		}
+
 		canvas_flip(mainCanvas);
 
 		if(canvas_is_show(screenshotCanvas))
@@ -409,3 +510,82 @@ main(int argc, char **argv)
 #include "canvas.c"
 #include "scene.c"
 #include "renderer.c"
+
+command_bar *
+command_bar_get()
+{
+	static command_bar *bar = NULL;
+
+	if(bar)
+	{
+		return bar;
+	}
+
+	bar = malloc(sizeof(command_bar));
+	bar->x = 0;
+	bar->y = 0;
+	bar->width = 300;
+	bar->height = 20;
+	bar->backgroundColor = 0xCC00; // pink
+	bar->textBuffer[0] = '\0';
+	bar->isShow = B32_FALSE;
+	bar->cursorLocation = 0;
+	bar->cursorSize = 20;
+	bar->cursorColor = (color32)((real32)(bar->backgroundColor >> 8)*0.5f) << 8;
+	bar->textObject = CANVAS_TEXT_NULL;
+
+	return bar;
+}
+
+void
+command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str)
+{
+	i32 bufferLength = strlen(bar->textBuffer);
+	i32 strLength = strlen(str);
+	i32 length = bufferLength + strLength;
+
+	if((length + 1) <= COMMAND_BAR_STR_LENGTH)
+	{
+		strcat(bar->textBuffer, str);
+	}
+	else
+	{
+		fprintf(stderr, "Command buffer full!\n");
+	}
+
+	if(bar->textObject == CANVAS_TEXT_NULL)
+	{
+		bar->textObject = canvas_text_create(canvas);
+
+		if(canvas_text_is_show(canvas, bar->textObject) != bar->isShow)
+		{
+			canvas_text_toggle(canvas, bar->textObject);
+		}
+	}
+
+	canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, 
+			bar->textBuffer);
+
+	bar->cursorLocation = length - 1;
+}
+
+void
+command_bar_toggle(command_bar *bar, raytracer_canvas *canvas)
+{
+	bar->isShow = !bar->isShow;
+
+	if(bar->textObject == CANVAS_TEXT_NULL)
+	{
+		bar->textObject = canvas_text_create(canvas);
+
+		if(canvas_text_is_show(canvas, bar->textObject) != bar->isShow)
+		{
+			canvas_text_toggle(canvas, bar->textObject);
+		}
+	}
+
+	bar->textBuffer[0] = '\0';
+	canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, bar->textBuffer);
+
+	bar->cursorLocation = 0;
+}

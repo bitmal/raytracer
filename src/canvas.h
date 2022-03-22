@@ -37,6 +37,12 @@ canvas_text_create(raytracer_canvas *canvas);
 extern void
 canvas_text_set(raytracer_canvas *canvas, i32 textId, i32 x, i32 y, const char *str);
 
+extern void
+canvas_text_toggle(raytracer_canvas *canvas, i32 textId);
+
+extern b32
+canvas_text_is_show(raytracer_canvas *canvas, i32 textId);
+
 extern Window
 canvas_get_window(raytracer_canvas *canvas);
 
