@@ -227,7 +227,8 @@ canvas_text_create(raytracer_canvas *canvas)
 	canvas->texts[index].y = 0;
 	canvas->texts[index].textBufferCapacity = 100;
 	canvas->texts[index].textBuffer = malloc(canvas->texts[index].textBufferCapacity);
-	canvas->texts[index].textBufferSize = 0;
+	canvas->texts[index].textBuffer[0] = '\0';
+	canvas->texts[index].textBufferSize = 1;
 	canvas->texts[index].isShow = B32_TRUE;
 
 	return index;
@@ -242,17 +243,16 @@ canvas_text_set(raytracer_canvas *canvas, i32 textId, i32 x, i32 y, const char *
 	text->y = y;
 
 	i32 strLength = strlen(str);
-	i32 textLength = strlen(text->textBuffer);
-	i32 totalLength = strLength + textLength + 1;
+	i32 totalLength = strLength + 1;
 
 	if(totalLength > text->textBufferCapacity)
 	{
 		text->textBuffer = realloc(text->textBuffer, text->textBufferCapacity = totalLength + 
-				100);
+				25);
 	}
 
-	strcat(text->textBuffer, str);
-	text->textBufferSize = textLength + strLength;
+	sprintf(text->textBuffer, "%s", str);
+	text->textBufferSize = totalLength;
 }
 
 void

@@ -426,7 +426,12 @@ main(int argc, char **argv)
 								(sym == XK_slash || sym == XK_space) || (sym == XK_equal))
 						{
 							command_bar *commandBar = command_bar_get();
-							command_bar_write(commandBar, mainCanvas, (const char *)&sym);
+
+							const char cmdBuffer[] = {
+								(char)sym, '\0'
+							};
+
+							command_bar_write(commandBar, mainCanvas, (const char *)cmdBuffer);
 						}
 					}
 				} break;
@@ -526,7 +531,7 @@ command_bar_get()
 	bar->y = 0;
 	bar->width = 300;
 	bar->height = 20;
-	bar->backgroundColor = 0xCC00; // pink
+	bar->backgroundColor = 0xCC00; // green
 	bar->textBuffer[0] = '\0';
 	bar->isShow = B32_FALSE;
 	bar->cursorLocation = 0;
@@ -542,9 +547,9 @@ command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str)
 {
 	i32 bufferLength = strlen(bar->textBuffer);
 	i32 strLength = strlen(str);
-	i32 length = bufferLength + strLength;
+	i32 length = bufferLength + strLength + 1;
 
-	if((length + 1) <= COMMAND_BAR_STR_LENGTH)
+	if(length <= COMMAND_BAR_STR_LENGTH)
 	{
 		strcat(bar->textBuffer, str);
 	}
@@ -566,7 +571,7 @@ command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str)
 	canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, 
 			bar->textBuffer);
 
-	bar->cursorLocation = length - 1;
+	bar->cursorLocation = length;
 }
 
 void
