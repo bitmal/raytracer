@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <time.h>
 #include <tgmath.h>
 #include <math.h>
@@ -28,17 +29,6 @@
 #include <dirent.h>
 
 #define COMMAND_BAR_STR_LENGTH 50
-
-typedef enum command_type
-{
-	COMMAND_TYPE_TEST
-} command_t;
-
-const char *g_CommandTypeStrings[] = {
-	"COMMAND_TYPE_TEST"
-};
-
-#define COMMAND_TYPE_STRING(type) (g_CommandTypeStrings[type])
 
 typedef struct command_bar
 {
@@ -59,12 +49,19 @@ typedef struct command_bar
 command_bar *
 command_bar_get();
 
-void
+b32
 command_bar_execute(command_bar *bar, raytracer_renderer *renderer, raytracer_scene *scene, 
 		raytracer_canvas *screenshotCanvas, raytracer_canvas *canvas);
 
 void
 command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str);
+
+void
+command_bar_replace(command_bar *bar, raytracer_canvas *canvas, i32 start, 
+		const char *str);
+
+void
+command_bar_remove_at(command_bar *bar, raytracer_canvas *canvas, i32 position);
 
 void
 command_bar_toggle(command_bar *bar, raytracer_canvas *canvas);
@@ -424,8 +421,15 @@ main(int argc, char **argv)
 							command_bar *commandBar = command_bar_get();
 							command_bar_toggle(commandBar, mainCanvas);
 						}
-						else if((sym >= XK_a && sym < XK_z) || (sym >= XK_A && sym < XK_Z) ||
-								(sym == XK_slash || sym == XK_space) || (sym == XK_equal))
+						else if(sym == XK_BackSpace)
+						{
+							command_bar *commandBar = command_bar_get();
+							i32 length = strlen(commandBar->textBuffer);
+							command_bar_remove_at(commandBar, mainCanvas, length - 1);
+						}
+						else if((sym >= XK_a && sym <= XK_z) || (sym >= XK_A && sym <= XK_Z) ||
+								(sym == XK_slash || sym == XK_space) || (sym == XK_equal || sym == XK_period ||
+									sym == XK_comma || sym == XK_semicolon) || (sym >= XK_0 && sym <= XK_9))
 						{
 							command_bar *commandBar = command_bar_get();
 
@@ -552,18 +556,157 @@ command_bar_get()
 	return bar;
 }
 
-void
+b32
 command_bar_execute(command_bar *bar, raytracer_renderer *renderer, raytracer_scene *scene, 
 		raytracer_canvas *screenshotCanvas, raytracer_canvas *canvas)
 {
-	enum
+	char commandBuffer[50];
+	commandBuffer[0] = '\0';
+	char **args = NULL;
+	i32 argCount = 0;
+
+	const char *iter = bar->textBuffer;
+
+	if(*iter == '\0')
 	{
-		SYMBOL_SLASH,
-		SYMBOL_EQUALS,
-		SYMBOL_COMMA,
-		SYMBOL_UNDERSCORE,
-		SYMBOL_VALUE
-	} symbol_t;
+		return B32_TRUE;
+	}
+
+ 	if(*iter != '/')
+ 	{
+ 		fprintf(stderr, "Commands should start with '/'.\n");
+ 		return B32_FALSE;
+ 	}
+
+ 	++iter;
+ 	
+ 	size_t span = strcspn(iter, " \n\t");
+
+ 	if(span <= 1)
+ 	{
+ 		fprintf(stderr, "No command entered after '/'.\n");
+
+ 		return B32_FALSE;
+ 	}
+
+ 	memcpy(commandBuffer, iter, span);
+
+ 	commandBuffer[span] = '\0';
+
+ 	iter += span;
+
+	while(B32_TRUE)
+	{
+		for(; *iter;)
+		{
+			if(isspace(*iter))
+			{
+				++iter;
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if(*iter == '\0')
+		{
+			break;
+		}
+
+		span = strcspn(iter, " \n\t");
+
+		i32 index = argCount;
+
+		if(argCount > 0)
+		{
+			args = realloc(args, sizeof(char *)*(++argCount));
+		}
+		else
+		{
+			args = malloc(sizeof(char *)*(++argCount));
+		}
+
+		args[index] = malloc(span);
+
+		memcpy(args[index], iter, span);
+
+		args[index][span] = '\0';
+
+		iter += span;
+	}
+
+	if(!strcmp(commandBuffer, "test"))
+	{
+		printf("Executing 'test' command.\n");
+
+		b32 isObj = B32_TRUE;
+		scene_object_t objType = SCENE_OBJECT_SPHERE;
+		real32 objX = 0;
+		real32 objY = 0;
+		real32 objZ = 0;
+		real32 size = 0.5f;
+
+		for(i32 i = 0; i < argCount; ++i)
+		{
+			const char *iter = args[i];
+
+			if(strcmp(iter, "type") > 0)
+			{
+				if(iter[sizeof("type") - 1] == '=')
+				{
+					iter += sizeof("type");
+
+					if(!strcmp(iter, "box"))
+					{
+						objType = SCENE_OBJECT_BOX;
+					}
+					else if(!strcmp(iter, "sphere"))
+					{
+						objType = SCENE_OBJECT_SPHERE;
+					}
+					else
+					{
+						fprintf(stderr, "Invalid 'type' arg value for test command.\n");
+					}
+				}
+			}
+			else if(strcmp(iter, "size") > 0)
+			{
+				if(iter[sizeof("size") - 1] == '=')
+				{
+					iter += sizeof("size");
+
+					size = atof(iter);
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Invalid argument for test command: '%s'\n", iter);
+			}
+		}
+
+		if(isObj)
+		{
+			i32 obj = scene_create_object(scene, objType);
+
+			v4 objPos = vec4_init(objX, objY, objZ, 0);
+			scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_POSITION, &objPos);
+
+			if(objType == SCENE_OBJECT_SPHERE)
+			{
+				scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_SPHERE_RADIUS, &size);
+			}
+			else
+			{
+				scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_BOX_WIDTH, &size);
+				scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_BOX_HEIGHT, &size);
+				scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_BOX_DEPTH, &size);
+			}
+		}
+	}
+
+	return B32_TRUE;
 }
 
 void
@@ -599,6 +742,55 @@ command_bar_write(command_bar *bar, raytracer_canvas *canvas, const char *str)
 }
 
 void
+command_bar_replace(command_bar *bar, raytracer_canvas *canvas, i32 start, 
+		const char *str)
+{
+	if(bar->textObject == CANVAS_TEXT_NULL)
+	{
+		bar->textObject = canvas_text_create(canvas);
+
+		if(canvas_text_is_show(canvas, bar->textObject) != bar->isShow)
+		{
+			canvas_text_toggle(canvas, bar->textObject);
+		}
+	}
+}
+
+void
+command_bar_remove_at(command_bar *bar, raytracer_canvas *canvas, i32 position)
+{
+	if(bar->textObject == CANVAS_TEXT_NULL)
+	{
+		bar->textObject = canvas_text_create(canvas);
+
+		if(canvas_text_is_show(canvas, bar->textObject) != bar->isShow)
+		{
+			canvas_text_toggle(canvas, bar->textObject);
+		}
+	}
+
+	i32 bufferLength = strlen(bar->textBuffer);
+
+	if(position < bufferLength && bufferLength > 0)
+	{
+		i32 shiftCount = bufferLength - (position + 1);
+
+		for(i32 i = position; i <= (position + shiftCount); ++i)
+		{
+			bar->textBuffer[i] = bar->textBuffer[i + 1];
+		}
+
+		bar->cursorLocation = bufferLength - 1;
+
+		canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, bar->textBuffer);
+	}
+	else
+	{
+		fprintf(stderr, "Cannot remove character after end of string.\n");
+	}
+}
+
+void
 command_bar_toggle(command_bar *bar, raytracer_canvas *canvas)
 {
 	bar->isShow = !bar->isShow;
@@ -612,6 +804,12 @@ command_bar_toggle(command_bar *bar, raytracer_canvas *canvas)
 			canvas_text_toggle(canvas, bar->textObject);
 		}
 	}
+
+#if 0 // Under construction
+	XTextExtents(XFontStruct *font_struct, char *string, int nchars, 
+			int *direction_return, int *font_ascent_return, int *font_descent_return, 
+			XCharStruct *overall_return)
+#endif
 
 	bar->textBuffer[0] = '\0';
 	canvas_text_set(canvas, bar->textObject, bar->x, bar->y + bar->height, bar->textBuffer);
