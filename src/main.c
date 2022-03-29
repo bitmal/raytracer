@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
-#define COMMAND_BAR_STR_LENGTH 50
+#define COMMAND_BAR_STR_LENGTH 200
 
 typedef struct command_bar
 {
@@ -429,7 +429,8 @@ main(int argc, char **argv)
 						}
 						else if((sym >= XK_a && sym <= XK_z) || (sym >= XK_A && sym <= XK_Z) ||
 								(sym == XK_slash || sym == XK_space) || (sym == XK_equal || sym == XK_period ||
-									sym == XK_comma || sym == XK_semicolon) || (sym >= XK_0 && sym <= XK_9))
+									sym == XK_comma || sym == XK_semicolon) || (sym >= XK_0 && sym <= XK_9) ||
+								(sym == XK_minus))
 						{
 							command_bar *commandBar = command_bar_get();
 
@@ -646,12 +647,13 @@ command_bar_execute(command_bar *bar, raytracer_renderer *renderer, raytracer_sc
 		real32 objY = 0;
 		real32 objZ = 0;
 		real32 size = 0.5f;
+		color32 color = 0xFFFFFF;
 
 		for(i32 i = 0; i < argCount; ++i)
 		{
 			const char *iter = args[i];
 
-			if(strcmp(iter, "type") > 0)
+			if(!strncmp(iter, "type", sizeof("type") - 1))
 			{
 				if(iter[sizeof("type") - 1] == '=')
 				{
@@ -671,13 +673,49 @@ command_bar_execute(command_bar *bar, raytracer_renderer *renderer, raytracer_sc
 					}
 				}
 			}
-			else if(strcmp(iter, "size") > 0)
+			else if(!strncmp(iter, "size", sizeof("size") - 1))
 			{
 				if(iter[sizeof("size") - 1] == '=')
 				{
 					iter += sizeof("size");
 
 					size = atof(iter);
+				}
+			}
+			else if(!strncmp(iter, "xpos", sizeof("xpos") - 1))
+			{
+				if(iter[sizeof("xpos") - 1] == '=')
+				{
+					iter += sizeof("xpos");
+
+					objX = atof(iter);
+				}
+			}
+			else if(!strncmp(iter, "ypos", sizeof("ypos") - 1))
+			{
+				if(iter[sizeof("ypos") - 1] == '=')
+				{
+					iter += sizeof("ypos");
+
+					objY = atof(iter);
+				}
+			}
+			else if(!strncmp(iter, "zpos", sizeof("zpos") - 1))
+			{
+				if(iter[sizeof("zpos") - 1] == '=')
+				{
+					iter += sizeof("zpos");
+
+					objZ = atof(iter);
+				}
+			}
+			else if(!strncmp(iter, "color", sizeof("color") - 1))
+			{
+				if(iter[sizeof("color") - 1] == '=')
+				{
+					iter += sizeof("color");
+
+					color = strtoul(iter, NULL, 16);
 				}
 			}
 			else
@@ -703,8 +741,16 @@ command_bar_execute(command_bar *bar, raytracer_renderer *renderer, raytracer_sc
 				scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_BOX_HEIGHT, &size);
 				scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_BOX_DEPTH, &size);
 			}
+			
+			scene_object_set_value(scene, obj, SCENE_OBJECT_VALUE_COLOR, &color);
 		}
 	}
+
+	for(i32 i = 0; i < argCount; ++i)
+	{
+		free(args[i]);
+	}
+	free(args);
 
 	return B32_TRUE;
 }
